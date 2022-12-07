@@ -17,9 +17,17 @@ from lmfit import models
 from sklearn.metrics import r2_score
 from sklearn.mixture import GaussianMixture
 from scipy.signal import savgol_filter
+import requests
+import urllib.request
 
-data_test = r'test_data\Deconvolution - AuNCs.xlsx'
-model_test = r'test_data\Deconvolution - AuNCs.txt'
+# data_test = r'test_data\Deconvolution - AuNCs.xlsx'
+# model_test = r'test_data\Deconvolution - AuNCs.txt'
+
+data_test = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.xlsx"
+model_test_url = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.txt"
+model_test = urllib.request.urlopen(model_test_url)
+
+# data_test_response = requests.get(url)
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 
@@ -33,27 +41,24 @@ layout={
 st.title("Deconvolution")
 
 
-def _1gaussian(x, amp, cen, sig):
-	return amp*(1/(sig*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen)/sig)**2)))
+# def _1gaussian(x, amp, cen, sig):
+# 	return amp*(1/(sig*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen)/sig)**2)))
 
 
-def _1Lorentzian(x, amp, cen, wid):
-	return (amp*wid**2/((x-cen)**2+wid**2))
+# def _1Lorentzian(x, amp, cen, wid):
+# 	return (amp*wid**2/((x-cen)**2+wid**2))
 
 
-def _1Voigt(x, ampG1, cenG1, sigmaG1, ampL1, cenL1, widL1):
-	return (ampG1*(1/(sigmaG1*(np.sqrt(2*np.pi))))*(np.exp(-((x-cenG1)**2)/((2*sigmaG1)**2)))) + ((ampL1*widL1**2/((x-cenL1)**2+widL1**2)))
+# def _1Voigt(x, ampG1, cenG1, sigmaG1, ampL1, cenL1, widL1):
+# 	return (ampG1*(1/(sigmaG1*(np.sqrt(2*np.pi))))*(np.exp(-((x-cenG1)**2)/((2*sigmaG1)**2)))) + ((ampL1*widL1**2/((x-cenL1)**2+widL1**2)))
 
 
-def linear(x, m, b):
-	return m*x + b
+# def linear(x, m, b):
+# 	return m*x + b
 
 
-def exponential(x, a, k, b):
-	return a*np.exp(x*k) + b
-
-
-
+# def exponential(x, a, k, b):
+# 	return a*np.exp(x*k) + b
 
 
 def main():
@@ -105,10 +110,11 @@ def main():
 		label='Upload deconvolution model',
 		type=['txt'])
 	if not model_file:
-		model_file = model_test
-
-	with open(model_file, 'r') as f:
-		deconvolution_setup = json.load(f)
+		deconvolution_setup = json.load(model_test)
+		# model_file = model_test
+	else:
+		with open(model_file, 'r') as f:
+			deconvolution_setup = json.load(f)
 
 	# deconvolution_setup = [
 	# 	{

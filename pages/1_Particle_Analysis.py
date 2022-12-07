@@ -10,9 +10,14 @@ import json
 from sklearn.mixture import GaussianMixture
 from matplotlib import pyplot as plt
 import math
+import requests
+from io import BytesIO
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
-img_test = r"test_data\Particle analysis - Test 1.tif"
+
+url = r"http://sci-space.co.uk//test_data/Particle%20analysis%20-%20Test%201.tif"
+response = requests.get(url)
+img_test = Image.open(BytesIO(response.content))
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 
@@ -114,10 +119,9 @@ def main():
 		diameter_val = st.slider("Diameter (px)", min_value=1, max_value=500, value=(10,300))
 
 	if not img_file:
-		img_file = img_test
-		# return None
-
-	img_original = Image.open(img_file)
+		img_original = img_test
+	else:
+		img_original = Image.open(img_file)
 	img_original = img_original.convert("RGB")
 	img = img_original.copy()
 	img, scalefactor = resize_img(img_original)
