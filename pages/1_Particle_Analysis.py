@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 import math
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
-img_test = r"test_data\2021-10-20-SEM-F125-10010.tiff"
+img_test = r"test_data\Particle analysis - Test 1.tif"
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 
@@ -95,8 +95,8 @@ def main():
 	img_file = st.sidebar.file_uploader(label='Upload an image to analyze', type=FILETYPES_IMG)
 
 	with st.sidebar.expander("Image settings"):
-		scale_val = st.number_input("Scalebar length", value=10)
-		scale_units_val = st.text_input("Scalebar units", value="µm")
+		scale_val = st.number_input("Scalebar length", value=500)
+		scale_units_val = st.text_input("Scalebar units", value="nm")
 
 
 	with st.sidebar.expander("Circle detection settings"):
@@ -140,8 +140,8 @@ def main():
 			'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4,},
 
 			{'type': 'line', 'originX': 'left', 'originY': 'top',
-			'x1': img.width*0.01, 'y1': img.height*0.95,
-			'x2': img.width*0.25, 'y2': img.height*0.95,
+			'x1': img.width*0.67, 'y1': img.height*0.85,
+			'x2': img.width*0.75, 'y2': img.height*0.85,
 			'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4,}
 			]}
 

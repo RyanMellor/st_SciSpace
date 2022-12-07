@@ -15,10 +15,11 @@ import plotly.graph_objects as go
 import plotly.express as px
 from lmfit import models
 from sklearn.metrics import r2_score
+from sklearn.mixture import GaussianMixture
 from scipy.signal import savgol_filter
 
-data_test = r'test_data\UV-Vis - 2022-05-01 - AuNC Stability - Deconvolution.xlsx'
-model_test = r'test_data\Deconvolution - AuNPs - Interacting.txt'
+data_test = r'test_data\Deconvolution - AuNCs.xlsx'
+model_test = r'test_data\Deconvolution - AuNCs.txt'
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 
