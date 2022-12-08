@@ -173,8 +173,16 @@ def main():
 
 	if not canvas_result.json_data:
 		return None
-
+	# try:
 	crop_rect = [d for d in canvas_result.json_data['objects'] if d['type']=='rect'][0]
+	# except:
+	# 	crop_rect = {'type': 'rect', 'originX': 'left', 'originY': 'top',
+	# 		'left': img.width*0.25, 'top': img.height*0.25,
+	# 		'width': img.width*0.5, 'height': img.height*0.5,
+	# 		'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4,}
+	# 	reset_drawing = canvas_result.json_data
+	# 	reset_drawing['objects'].append(crop_rect)
+	# 	return None
 	crop_left = crop_rect['left']
 	crop_top = crop_rect['top']
 	crop_right = crop_left + crop_rect['width']*crop_rect['scaleX']
@@ -260,7 +268,7 @@ def main():
 
 	# Compute metrics to determine best hyperparameter
 	AIC = [m.aic(X) for m in models]
-	BIC = [m.bic(X) for m in models]
+	# BIC = [m.bic(X) for m in models]
 	N = np.argmin(AIC)
 	gmm_best = models[N]
 

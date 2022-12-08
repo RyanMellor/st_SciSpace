@@ -51,7 +51,16 @@ st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
 
 
 def main():
-    pass
+    st.markdown('''
+        ---
+        Homepage of SciSpace Applications.
+
+        Visit [SciSpace](http://sci-space.co.uk) for more information)
+
+        ---
+    ''')
+    
+    st.image(logo)
 
 if __name__ == '__main__':
     main()
