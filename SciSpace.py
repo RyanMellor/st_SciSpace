@@ -13,39 +13,63 @@ st.set_page_config(
 
 st.title("SciSpace")
 
+scispace_url = "http://sci-space.co.uk/"
 logo_url = "http://sci-space.co.uk/scispace.png"
 
-st.markdown(
+
+st.sidebar.markdown(
     f"""
-    <style>
-        [data-testid="stSidebarNav"] {{
-            background-image: url({logo_url});
-            background-repeat: no-repeat;
-            padding-top: 80px;
-            background-position: 20px 20px;
-            href: "http://sci-space.co.uk/";
-        }}
-    </style>
+    <div>
+        <a href="{scispace_url}" target="_blank">
+            <img src="{logo_url}" alt="SciSpace">
+        </a>
+        <p></p>
+        <a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
+            <img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
+        </a>
+    </div>
     """,
     unsafe_allow_html=True,
 )
 
-# st.sidebar.markdown("[![SciSpace](http://sci-space.co.uk/scispace.png)](http://sci-space.co.uk/)")
-
 # --- HIDE STREAMLIT STYLE ---
-# hide_st_style = """
-#             <style>
-#             # MainMenu {visibility: hidden;}
-#             footer {visibility: hidden;}
-#             header {visibility: hidden;}
-#             </style>
-#             """
-# st.markdown(hide_st_style, unsafe_allow_html=True)
+hide_st_style = """
+            <style>
+            MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
+
+
+
 
 
 def main():
+    # Branding
+	branding = f"""
+		<div>
+			<a href="http://sci-space.co.uk/" target="_blank">
+				<img src="http://sci-space.co.uk/scispace.png" alt="SciSpace">
+			</a>
+			<p></p>
+			<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
+				<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
+			</a>
+		</div>
+		"""
+	st.sidebar.markdown(branding, unsafe_allow_html=True,)
 
-    pass
+	# --- HIDE STREAMLIT STYLE ---
+	hide_st_style = """
+		<style>
+			MainMenu {visibility: hidden;}
+			footer {visibility: hidden;}
+			header {visibility: hidden;}
+		</style>
+		"""
+	st.markdown(hide_st_style, unsafe_allow_html=True)
 
 
 if __name__ == '__main__':

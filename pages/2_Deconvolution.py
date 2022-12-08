@@ -20,14 +20,9 @@ from scipy.signal import savgol_filter
 import requests
 import urllib.request
 
-# data_test = r'test_data\Deconvolution - AuNCs.xlsx'
-# model_test = r'test_data\Deconvolution - AuNCs.txt'
-
 data_test = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.xlsx"
 model_test_url = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.txt"
 model_test = urllib.request.urlopen(model_test_url)
-
-# data_test_response = requests.get(url)
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 
@@ -39,27 +34,6 @@ plotly_layout={
 	}
 
 st.title("Deconvolution")
-
-
-# def _1gaussian(x, amp, cen, sig):
-# 	return amp*(1/(sig*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen)/sig)**2)))
-
-
-# def _1Lorentzian(x, amp, cen, wid):
-# 	return (amp*wid**2/((x-cen)**2+wid**2))
-
-
-# def _1Voigt(x, ampG1, cenG1, sigmaG1, ampL1, cenL1, widL1):
-# 	return (ampG1*(1/(sigmaG1*(np.sqrt(2*np.pi))))*(np.exp(-((x-cenG1)**2)/((2*sigmaG1)**2)))) + ((ampL1*widL1**2/((x-cenL1)**2+widL1**2)))
-
-
-# def linear(x, m, b):
-# 	return m*x + b
-
-
-# def exponential(x, a, k, b):
-# 	return a*np.exp(x*k) + b
-
 
 def main():
 	data_file = st.sidebar.file_uploader(
@@ -248,5 +222,30 @@ def main():
 		for key, val in output.best_values.items():
 			st.write(key, round(val,2))
 
+
 if __name__ == '__main__':
 	main()
+
+	# Branding
+	branding = f"""
+		<div>
+			<a href="http://sci-space.co.uk/" target="_blank">
+				<img src="http://sci-space.co.uk/scispace.png" alt="SciSpace">
+			</a>
+			<p></p>
+			<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
+				<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
+			</a>
+		</div>
+		"""
+	st.sidebar.markdown(branding, unsafe_allow_html=True,)
+
+	# --- HIDE STREAMLIT STYLE ---
+	hide_st_style = """
+		<style>
+			MainMenu {visibility: hidden;}
+			footer {visibility: hidden;}
+			header {visibility: hidden;}
+		</style>
+		"""
+	st.markdown(hide_st_style, unsafe_allow_html=True)

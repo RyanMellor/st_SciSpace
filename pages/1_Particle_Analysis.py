@@ -302,8 +302,31 @@ def main():
 
 
 
-
-
+	
 
 if __name__ == '__main__':
 	main()
+
+	# Branding
+	branding = f"""
+		<div>
+			<a href="http://sci-space.co.uk/" target="_blank">
+				<img src="http://sci-space.co.uk/scispace.png" alt="SciSpace">
+			</a>
+			<p></p>
+			<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
+				<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
+			</a>
+		</div>
+		"""
+	st.sidebar.markdown(branding, unsafe_allow_html=True,)
+
+	# --- HIDE STREAMLIT STYLE ---
+	hide_st_style = """
+		<style>
+			MainMenu {visibility: hidden;}
+			footer {visibility: hidden;}
+			header {visibility: hidden;}
+		</style>
+		"""
+	st.markdown(hide_st_style, unsafe_allow_html=True)
