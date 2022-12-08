@@ -33,7 +33,7 @@ FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 
 PRIMARY_COLOR = "#4589ff"
 
-layout={
+plotly_layout={
 	'template':'plotly_dark',
 	'height':600
 	}
@@ -103,7 +103,7 @@ def main():
 							"index": "Wavelength (nm)"
 							}
 						)
-		fig_raw_data.update_layout(layout)
+		fig_raw_data.update_layout(plotly_layout)
 		st.plotly_chart(fig_raw_data, use_container_width=True)
 
 	model_file = st.sidebar.file_uploader(
