@@ -25,18 +25,44 @@ model_test_url = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.t
 model_test = urllib.request.urlopen(model_test_url)
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
-
 PRIMARY_COLOR = "#4589ff"
 
-plotly_layout={
-	'template':'plotly_dark',
-	'height':600
-	}
+# ---- Page setup ----
+im = Image.open("favicon.ico")
+st.set_page_config(
+    page_title="Deconvolution",
+    page_icon=im,
+)
 
 st.title("Deconvolution")
 
+page_setup = """
+	<div>
+		<a href="http://sci-space.co.uk/" target="_blank">
+			<img src="http://sci-space.co.uk/scispace.png" alt="SciSpace">
+		</a>
+		<p></p>
+		<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
+			<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
+		</a>
+	</div>
+	<hr/>
+	<style>
+		footer {visibility: hidden;}
+		header {visibility: hidden;}
+		[data-testid="stTickBar"] {{
+			height:0;
+			visibility:hidden;
+		}}
+	</style>
+	"""
+st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
+
 def main():
-	data_file = st.sidebar.file_uploader(
+
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
+	data_file = st.file_uploader(
 		label='Upload raw data',
 		type=['txt', 'csv', 'xls', 'xlsx'])
 
@@ -70,17 +96,18 @@ def main():
 
 	with col_plotraw:
 		# TODO add options for labels to sidebar
-		fig_raw_data = px.line(df_data[df_data.columns[selected_samples]],
-						labels={
-							"value": "Absorbance",
-							"variable": "Sample",
-							"index": "Wavelength (nm)"
-							}
-						)
-		fig_raw_data.update_layout(plotly_layout)
+		fig_raw_data = px.line(df_data[df_data.columns[selected_samples]])
+		fig_raw_data.layout.template = 'plotly_dark'
+		fig_raw_data.layout.legend.traceorder = 'normal'
+		fig_raw_data.layout.margin = dict(l=20, r=20, t=20, b=20)
+		fig_raw_data.layout.xaxis.title.text = 'Wavelength (nm)'
+		fig_raw_data.layout.yaxis.title.text = 'Absorbance'
+		fig_raw_data.layout.legend.title.text = 'Sample'
 		st.plotly_chart(fig_raw_data, use_container_width=True)
 
-	model_file = st.sidebar.file_uploader(
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
+	model_file = st.file_uploader(
 		label='Upload deconvolution model',
 		type=['txt'])
 	if not model_file:
@@ -149,6 +176,8 @@ def main():
 			theme=AgGridTheme.ALPINE,
 		)
 
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
 	col_deconvolution_plot, col_deconvloution_values = st.columns([2,1])
 	with col_deconvolution_plot:
 		st.markdown("## Deconvolution")
@@ -200,13 +229,7 @@ def main():
 		res = fit - y_data
 		r2 = r2_score(y_data, fit)
 
-		fig_deconvolution = go.Figure(
-			layout={
-				'template':'plotly_dark',
-				'height':700,
-				'xaxis_title':"Wavelength (nm)",
-				'yaxis_title':"Absorbance",
-				})
+		fig_deconvolution = go.Figure()
 		fig_deconvolution.add_trace(go.Scatter(x=x_data, y=y_data, name='Data', line_color='silver'))
 		fig_deconvolution.add_trace(go.Scatter(x=x_data, y=fit, name=f'Fit: R2={r2:.4f}', line_color='gold'))
 		for name, y_data in eval_components.items():
@@ -214,38 +237,22 @@ def main():
 			df = df_deconvolution_setup[df_deconvolution_setup['feature']==name]
 			color = df.iloc[0]['color']
 			fig_deconvolution.add_trace(go.Scatter(x=x_data, y=y_data, name=name, line_color=color))
+
+		fig_deconvolution.layout.template = 'plotly_dark'
+		fig_deconvolution.layout.legend.traceorder = 'normal'
+		fig_deconvolution.layout.margin = dict(l=20, r=20, t=20, b=20)
+		fig_deconvolution.layout.xaxis.title.text = 'Wavelength (nm)'
+		fig_deconvolution.layout.yaxis.title.text = 'Absorbance'
 		st.plotly_chart(fig_deconvolution, use_container_width=True)
 
 	with col_deconvloution_values:
-		st.markdown("## Best fit values")
+		st.markdown("### Best fit values")
 		st.write("")
 		for key, val in output.best_values.items():
 			st.write(key, round(val,2))
 
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
 
 if __name__ == '__main__':
 	main()
-
-	# Branding
-	branding = f"""
-		<div>
-			<a href="http://sci-space.co.uk/" target="_blank">
-				<img src="http://sci-space.co.uk/scispace.png" alt="SciSpace">
-			</a>
-			<p></p>
-			<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
-				<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
-			</a>
-		</div>
-		"""
-	st.sidebar.markdown(branding, unsafe_allow_html=True,)
-
-	# --- HIDE STREAMLIT STYLE ---
-	hide_st_style = """
-		<style>
-			MainMenu {visibility: hidden;}
-			footer {visibility: hidden;}
-			header {visibility: hidden;}
-		</style>
-		"""
-	st.markdown(hide_st_style, unsafe_allow_html=True)

@@ -20,29 +20,40 @@ response = requests.get(url)
 img_test = Image.open(BytesIO(response.content))
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
-
 PRIMARY_COLOR = "#4589ff"
 
-st.markdown(
-	f"""
+# ---- Page setup ----
+im = Image.open("favicon.ico")
+st.set_page_config(
+    page_title="Particle Analysis",
+    page_icon=im,
+)
+
+st.title("Particle analysis")
+
+page_setup = """
+	<div>
+		<a href="http://sci-space.co.uk/" target="_blank">
+			<img src="http://sci-space.co.uk/scispace.png" alt="SciSpace">
+		</a>
+		<p></p>
+		<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
+			<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
+		</a>
+	</div>
+	<hr/>
 	<style>
+		footer {visibility: hidden;}
 		[data-testid="stTickBar"] {{
 			height:0;
 			visibility:hidden;
 		}}
-
 	</style>
-	""",
-	unsafe_allow_html=True,
-)
+	"""
+st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
 
-plotly_layout={
-	'template':'plotly_dark',
-	'height':600
-	}
 
-st.title("Particle analysis")
-
+# ---- Functions ----
 def detect_particles(img, params):
 	diameters = []
 	img_output = img.copy()
@@ -110,7 +121,10 @@ def plot_mixture(gmm, X, show_legend=True, ax=None):
 			ax.legend()
 
 def main():
-	img_file = st.sidebar.file_uploader(label='Upload an image to analyze', type=FILETYPES_IMG)
+
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
+	img_file = st.file_uploader(label='Upload an image to analyze', type=FILETYPES_IMG)
 
 	if not img_file:
 		img_original = img_test
@@ -299,34 +313,10 @@ def main():
 	df.index += 1
 	st.table(df)
 
+	st.markdown("<hr/>", unsafe_allow_html=True)
 
 
 
-	
 
 if __name__ == '__main__':
 	main()
-
-	# Branding
-	branding = f"""
-		<div>
-			<a href="http://sci-space.co.uk/" target="_blank">
-				<img src="http://sci-space.co.uk/scispace.png" alt="SciSpace">
-			</a>
-			<p></p>
-			<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
-				<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
-			</a>
-		</div>
-		"""
-	st.sidebar.markdown(branding, unsafe_allow_html=True,)
-
-	# --- HIDE STREAMLIT STYLE ---
-	hide_st_style = """
-		<style>
-			MainMenu {visibility: hidden;}
-			footer {visibility: hidden;}
-			header {visibility: hidden;}
-		</style>
-		"""
-	st.markdown(hide_st_style, unsafe_allow_html=True)
