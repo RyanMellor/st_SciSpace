@@ -33,12 +33,14 @@ st.set_page_config(
 
 st.title("Particle analysis")
 
+logo_url = r"http://sci-space.co.uk//scispace.png"
+logo_response = requests.get(logo_url)
+logo = Image.open(BytesIO(logo_response.content))
+
+st.sidebar.image(logo)
+
 page_setup = """
 	<div>
-		<a href="http://sci-space.co.uk/" target="_blank">
-			<img src="http://sci-space.co.uk/scispace.png" alt="SciSpace">
-		</a>
-		<p></p>
 		<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
 			<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
 		</a>
@@ -188,6 +190,8 @@ def main():
 	scalebar_line = [d for d in canvas_result.json_data['objects'] if d['type']=='line'][0]
 	scalebar_px = scalebar_line['width'] * scalebar_line['scaleX']
 
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
 	col_detected_particles, col_detection_settings = st.columns([3,1])
 
 	with col_detection_settings:
@@ -239,8 +243,8 @@ def main():
 		df.index += 1
 		st.table(df)
 
-	st.write("")
-	st.write("")
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
 	col_dist_plot, col_dist_plot_settings = st.columns([3,1])
 
 	# Add a column to contain dist plot settings
