@@ -28,10 +28,12 @@ FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
 
 # ---- Page setup ----
-im = Image.open("favicon.ico")
+fav_url = r"http://sci-space.co.uk//favicon.ico"
+fav_response = requests.get(fav_url)
+fav = Image.open(BytesIO(fav_response.content))
 st.set_page_config(
     page_title="Deconvolution",
-    page_icon=im,
+    page_icon=fav,
 )
 
 st.title("Deconvolution")
@@ -49,7 +51,6 @@ page_setup = """
 	<hr/>
 	<style>
 		footer {visibility: hidden;}
-		header {visibility: hidden;}
 		[data-testid="stTickBar"] {{
 			height:0;
 			visibility:hidden;

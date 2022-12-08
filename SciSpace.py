@@ -1,14 +1,18 @@
 import streamlit as st
 from PIL import Image
+import requests
+from io import BytesIO
 
 
 PRIMARY_COLOR = "#4589ff"
 
 # ---- Page setup ----
-im = Image.open("favicon.ico")
+fav_url = r"http://sci-space.co.uk//favicon.ico"
+fav_response = requests.get(fav_url)
+fav = Image.open(BytesIO(fav_response.content))
 st.set_page_config(
     page_title="SciSpace",
-    page_icon=im,
+    page_icon=fav,
 )
 
 st.title("SciSpace")

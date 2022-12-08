@@ -15,18 +15,20 @@ import requests
 from io import BytesIO
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
-url = r"http://sci-space.co.uk//test_data/Particle%20analysis%20-%20Test%201.tif"
-response = requests.get(url)
-img_test = Image.open(BytesIO(response.content))
+img_test_url = r"http://sci-space.co.uk//test_data/Particle%20analysis%20-%20Test%201.tif"
+img_test_response = requests.get(img_test_url)
+img_test = Image.open(BytesIO(img_test_response.content))
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
 
 # ---- Page setup ----
-im = Image.open("favicon.ico")
+fav_url = r"http://sci-space.co.uk//favicon.ico"
+fav_response = requests.get(fav_url)
+fav = Image.open(BytesIO(fav_response.content))
 st.set_page_config(
     page_title="Particle Analysis",
-    page_icon=im,
+    page_icon=fav,
 )
 
 st.title("Particle analysis")
