@@ -53,13 +53,13 @@ st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
 def main():
     st.markdown('''
         ---
-        Homepage of SciSpace Applications.
+        Homepage of SciSpace Streamlit applications.
 
-        Visit [SciSpace](http://sci-space.co.uk) for more information)
+        Visit [SciSpace](http://sci-space.co.uk) for more information
 
         ---
     ''')
-    
+
     st.image(logo)
 
 if __name__ == '__main__':

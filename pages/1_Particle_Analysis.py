@@ -170,6 +170,7 @@ def main():
 			display_toolbar = False,
 			initial_drawing = initial_drawing,
 		)
+		st.caption("Warning: Doubleclicking objects will delete them and you will have to restart the application")
 
 	if not canvas_result.json_data:
 		return None
