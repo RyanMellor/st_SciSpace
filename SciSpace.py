@@ -38,10 +38,6 @@ page_setup = """
 	<hr/>
 	<style>
 		footer {visibility: hidden;}
-		[data-testid="stTickBar"] {{
-			height:0;
-			visibility:hidden;
-		}}
 	</style>
 	"""
 st.sidebar.markdown(page_setup, unsafe_allow_html=True,)

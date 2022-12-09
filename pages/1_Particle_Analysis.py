@@ -48,10 +48,7 @@ page_setup = """
 	<hr/>
 	<style>
 		footer {visibility: hidden;}
-		[data-testid="stTickBar"] {{
-			height:0;
-			visibility:hidden;
-		}}
+		[data-testid="stTickBar"] {height:0; visibility:hidden;}
 	</style>
 	"""
 st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
@@ -150,16 +147,20 @@ def main():
 		initial_drawing = {
 			'version': '4.4.0',
 			'objects': [
-				{'type': 'rect', 'originX': 'left', 'originY': 'top',
-				'left': img.width*0.25, 'top': img.height*0.25,
-				'width': img.width*0.5, 'height': img.height*0.5,
-				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4,},
-
-				{'type': 'line', 'originX': 'left', 'originY': 'top',
+				{
+				'type': 'line', 'originX': 'left', 'originY': 'top',
 				'x1': img.width*0.67, 'y1': img.height*0.85,
 				'x2': img.width*0.75, 'y2': img.height*0.85,
-				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4,}
-				]}
+				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
+				},
+				{
+				'type': 'rect', 'originX': 'left', 'originY': 'top',
+				'left': img.width*0.25, 'top': img.height*0.25,
+				'width': img.width*0.5, 'height': img.height*0.5,
+				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
+				}
+			]
+		}
 
 		canvas_result = st_canvas(
 			key="canvas",
@@ -170,25 +171,26 @@ def main():
 			display_toolbar = False,
 			initial_drawing = initial_drawing,
 		)
-		st.caption("Warning: Doubleclicking objects will delete them and you will have to restart the application")
+		st.caption("Warning: Doubleclicking objects will remove them and you will have to refresh the page")
 
 	if not canvas_result.json_data:
 		return None
-	# try:
-	crop_rect = [d for d in canvas_result.json_data['objects'] if d['type']=='rect'][0]
-	# except:
-	# 	crop_rect = {'type': 'rect', 'originX': 'left', 'originY': 'top',
-	# 		'left': img.width*0.25, 'top': img.height*0.25,
-	# 		'width': img.width*0.5, 'height': img.height*0.5,
-	# 		'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4,}
-	# 	reset_drawing = canvas_result.json_data
-	# 	reset_drawing['objects'].append(crop_rect)
-	# 	return None
+	try:
+		crop_rect = [d for d in canvas_result.json_data['objects'] if d['type']=='rect'][0]
+	except:
+		# crop_rect = {
+		# 	'type': 'rect', 'originX': 'left', 'originY': 'top',
+		# 	'left': img.width*0.25, 'top': img.height*0.25,
+		# 	'width': img.width*0.5, 'height': img.height*0.5,
+		# 	'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
+		# 	}
+		# st.session_state["canvas"]["raw"]["objects"].append(crop_rect)
+		st.write("Oops! You've removed your ROI, please refresh the page")
+		return None
 	crop_left = crop_rect['left']
 	crop_top = crop_rect['top']
 	crop_right = crop_left + crop_rect['width']*crop_rect['scaleX']
 	crop_bottom = crop_top + crop_rect['height']*crop_rect['scaleY']
-	# (print(crop_left, crop_top, crop_right, crop_bottom))
 	img_crop =  img_original.crop((
 		int((crop_left / img.width) * img_original.width),
 		int((crop_top / img.height) * img_original.height),
@@ -196,7 +198,12 @@ def main():
 		int((crop_bottom / img.height) * img_original.height)
 		))
 
-	scalebar_line = [d for d in canvas_result.json_data['objects'] if d['type']=='line'][0]
+	try:
+		scalebar_line = [d for d in canvas_result.json_data['objects'] if d['type']=='line'][0]
+	except:
+		st.write("Oops! You've removed your scalebar, please refresh the page")
+		return None
+
 	scalebar_px = scalebar_line['width'] * scalebar_line['scaleX']
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
@@ -265,7 +272,7 @@ def main():
 	X = np.array(diameters_units).reshape(-1, 1)
 
 	k_arr = np.arange(max_components_val) + 1
-	models = [GaussianMixture(n_components=k, covariance_type='full').fit(X) for k in k_arr]
+	models = [GaussianMixture(n_components=k, covariance_type='full', random_state=42).fit(X) for k in k_arr]
 
 	# Compute metrics to determine best hyperparameter
 	AIC = [m.aic(X) for m in models]
