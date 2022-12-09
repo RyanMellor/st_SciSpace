@@ -72,7 +72,6 @@ def detect_particles(img, params):
 		minRadius=int(params["diameter_val"][0]/2), 
 		maxRadius=int(params["diameter_val"][1]/2),
 		)
-
 	if circles is not None:
 		for circle in circles[0]:
 			x, y, r = circle
@@ -80,7 +79,7 @@ def detect_particles(img, params):
 			cv2.circle(img_output, (int(x), int(y)), 2, (255, 255, 255), 2)
 			diameters.append(2 * r)
 
-	return img_output, diameters
+	return img_output, circles, diameters
 
 def resize_img(img: Image, max_height: int=600, max_width: int=600):
     # Resize the image to be a max of 600x600 by default, or whatever the user 
@@ -234,7 +233,7 @@ def main():
 
 	with col_detected_particles:
 		img_crop = np.array(img_crop)
-		img_output, diameters_px = detect_particles(img_crop, detection_settings)
+		img_output, circles, diameters_px = detect_particles(img_crop, detection_settings)
 		st.image(img_output)
 		diameters_units = [i * (scale_val/scalebar_px) * scalefactor for i in diameters_px]
 
@@ -251,13 +250,21 @@ def main():
 		# """)
 	# st.caption("Mean currently provides the arithmetic mean of a all particles, should be ignored for multimodal distributions")
 
+	xs, ys, rs = [],[],[]
+	for circle in circles[0]:
+		x, y, r = circle
+		xs.append(x)
+		ys.append(y)
+		rs.append(r)
 	with st.expander(label="Particles"):
 		df = pd.DataFrame(
-			diameters_units,
-			columns=[f'Diameter ({scale_units_val})']
+			{f'Diameter ({scale_units_val})': diameters_units,
+			'x (px)':xs,
+			'y (px)': ys}
+			# columns=[f'Diameter ({scale_units_val})']
 		)
 		df.index += 1
-		st.table(df)
+		st.dataframe(df)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
@@ -333,7 +340,7 @@ def main():
 	df.sort_values(f"Mean ({scale_units_val})", inplace=True)
 	df.reset_index(drop=True, inplace=True)
 	df.index += 1
-	st.table(df)
+	st.dataframe(df)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
