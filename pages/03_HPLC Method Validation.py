@@ -122,8 +122,7 @@ def main():
 
 	subtract_baseline = st.checkbox('Subtract baseline')
 	if subtract_baseline:
-		st.markdown("Doing good science :thumbsup:")
-		# print([i for i in df_data.columns if i != "Baseline"])
+		# st.markdown("Doing good science :thumbsup:")
 		df_data = df_data_read[sample_names].sub(df_data_read["Baseline"], axis=0)
 	else:
 		df_data = df_data_read
@@ -155,34 +154,66 @@ def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
-	st.markdown("## Analytes")
-	analytes = [
-		{
-		'analyte': 'Analyte1',
-		'from': 4,
-		'to': 4.4,
-		'target concentration': 200,
-		},
-		{
-		'analyte': 'Analyte2',
-		'from': 5.1,
-		'to': 5.4,
-		'target concentration': 200,
-		},
-	]
-	df_analytes = pd.DataFrame(analytes)
-	ob_analytes = GridOptionsBuilder.from_dataframe(df_analytes)
-	ob_analytes.configure_column('analyte', suppressMenu=True, sortable=False, editable=True)
-	ob_analytes.configure_column('from', suppressMenu=True, sortable=False, editable=True)
-	ob_analytes.configure_column('to', suppressMenu=True, sortable=False, editable=True)
-	ob_analytes.configure_column('target concentration', suppressMenu=True, sortable=False, editable=True)
-	ag_analytes = AgGrid(
-		df_analytes,
-		ob_analytes.build(),
-		columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-		theme=AgGridTheme.ALPINE,
-	)
-	analytes = ag_analytes.data.to_dict('records')
+	col_analytes, col_system = st.columns([2,1])
+
+	with col_analytes:
+		st.markdown("## Analytes")
+		analytes = [
+			{
+			'analyte': 'Analyte1',
+			'from': 4,
+			'to': 4.4,
+			'target': 200,
+			},
+			{
+			'analyte': 'Analyte2',
+			'from': 5.1,
+			'to': 5.4,
+			'target': 200,
+			},
+			{'analyte':''},
+			{'analyte':''},
+			{'analyte':''},
+			{'analyte':''},
+			{'analyte':''},
+			{'analyte':''},
+			{'analyte':''}
+		]
+		df_analytes = pd.DataFrame(analytes)
+		ob_analytes = GridOptionsBuilder.from_dataframe(df_analytes)
+		ob_analytes.configure_column('analyte', suppressMenu=True, sortable=False, editable=True)
+		ob_analytes.configure_column('from', suppressMenu=True, sortable=False, editable=True)
+		ob_analytes.configure_column('to', suppressMenu=True, sortable=False, editable=True)
+		ob_analytes.configure_column('target', suppressMenu=True, sortable=False, editable=True)
+		ag_analytes = AgGrid(
+			df_analytes,
+			ob_analytes.build(),
+			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+			theme=AgGridTheme.ALPINE,
+		)
+		analytes = ag_analytes.data.to_dict('records')
+
+	with col_system:
+		st.markdown("## System")
+
+		system = [
+			{
+				'parameter': 't0',
+				'value': 0.65
+			}
+		]
+
+		df_system = pd.DataFrame(system)
+		ob_system = GridOptionsBuilder.from_dataframe(df_system)
+		ob_system.configure_column('parameter', suppressMenu=True, sortable=False)
+		ob_system.configure_column('value', suppressMenu=True, sortable=False, editable=True)
+		ag_system = AgGrid(
+			df_system,
+			ob_system.build(),
+			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+			theme=AgGridTheme.ALPINE,
+		)
+		system = ag_system.data.to_dict('records')
 
 	study_abv = {
 		'Lin': 'Linearity',
@@ -212,12 +243,11 @@ def main():
 		df = df_data.loc[mask]
 		for s in sample_names:
 			auc = trapz(df[s], df.index)
-			df_calcs[f'AUC_{analyte}'][(df_calcs['sample']==s)] = auc
-			# df_calcs[f'Nominal_{analyte}'][(df_calcs['sample']==s)] = a['target concentration'] * df_calcs['level'][(df_calcs['sample']==s)]/100 
+			df_calcs[f'AUC_{analyte}'][(df_calcs['sample']==s)] = 60 * auc
 
 		df_calcs[f'AUC_{analyte}'] = df_calcs[f'AUC_{analyte}'].astype(float)
 
-		df_calcs[f'Nominal_{analyte}'] = a['target concentration'] * df_calcs['level']/100
+		df_calcs[f'Nominal_{analyte}'] = a['target'] * df_calcs['level']/100
 		df_calcs[f'Nominal_{analyte}'] = df_calcs[f'Nominal_{analyte}'].astype(float)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
@@ -227,6 +257,8 @@ def main():
 
 	for a in analytes:
 		analyte = a['analyte']
+		if analyte == "":
+			continue
 		st.markdown(f"### {analyte}", unsafe_allow_html=True)
 
 		col_lin, col_acc, col_rep= st.columns([1,1,1])
