@@ -24,6 +24,8 @@ import requests
 from io import BytesIO
 import urllib.request
 import math
+import copy
+
 
 data_test = r"http://sci-space.co.uk//test_data/HPLC%20Method%20Validation%20-%20Test%20data.xlsx"
 
@@ -95,62 +97,45 @@ def main():
 
 	st.markdown(r"""
 		### How to use this page
-		1. Download the raw data template provided in the sidebar.
-		2. Populate the spreadsheet with your raw data.
-			- Lin (linearity): triplicate preparations at 25, 50, 75, 100, 150, and 200% of the target value.
-			- Acc (accuracy): triplicate preparations at 50, 100, and 100% of the target value.
-			- Rep (repeatability): 10 injections of the same sample at 100% of the target value.
-		3. Upload the populated document to the next section.
-		4. Select whether or not to subtract baseline.
-		5. Define analyte integration ranges.
+			1. Define analyte integration ranges and system setup.
+			2. Download the raw data template provided in the sidebar.
+			3. Populate the workbook with your raw data.
+			4. Upload the populated workbook to this page.
+
+		### [Validation](https://docs.sci-space.co.uk/methods-in-pharmacy/basic-concepts/validation)
+			Linearity (Lin)
+			- The property of a data set to fit a straight line plot.
+			- Triplicate preparations at 25, 50, 75, 100, 150, and 200% of the target value.
+			- R2 ≥ 0.999 and y-intercept ≤ 2% of target concentration.
+
+			Accuracy (Acc)
+			- The closeness of an assay value to the true value.
+			- Triplicate preparations at 50, 100, and 100% of the target value.
+			- RSD ±10% for non-regulated products, ±2% for dosage forms, and ±1% for drug substance.
+
+			Repeatability (Rep)
+			- The closeness of agreement of multiple measurements of the same sample.
+			- 10 injections of the same sample at 100% of the target value.
+			- RSD ±5% for non-regulated products, ±2% for dosage forms, and ±1% for drug substance.
+
+		### [System Suitability](https://docs.sci-space.co.uk/methods-in-pharmacy/analysis/chromatography/system-suitability)
+			Efficiency (N)
+			- A measure of column efficiency, i.e. sharpness of peak realeive to retention time.
+			- N > 2000
+
+			Resolution (Rs)
+			- The separation of two compounds.
+			- Rs > 2
+
+			Capacity Factor (k)
+			- The retention time of a peak relative to the hold-up time.
+			- k > 2
+
+			Tailing factor (T)
+			- The degree of peak symmetry
+			- T ≤ 2
 
 	""", unsafe_allow_html=True)
-
-	st.markdown("<hr/>", unsafe_allow_html=True)
-
-	data_file = st.file_uploader(
-		label='Upload raw data',
-		type=['txt', 'csv', 'xls', 'xlsx'])
-	if not data_file:
-		data_file = data_test
-
-	df_data_read = read_data(data_file)
-	if df_data_read is None:
-		return None
-
-	sample_names = [i for i in df_data_read.columns if i != "Baseline"]
-
-	subtract_baseline = st.checkbox('Subtract baseline')
-	if subtract_baseline:
-		# st.markdown("Doing good science :thumbsup:")
-		df_data = df_data_read[sample_names].sub(df_data_read["Baseline"], axis=0)
-	else:
-		df_data = df_data_read
-
-	samples = pd.DataFrame(columns=['samples'], data=df_data.columns)
-	col_dataselector, col_plotraw = st.columns([1, 3])
-
-	with col_dataselector:
-		ob_samples = GridOptionsBuilder.from_dataframe(samples)
-		ob_samples.configure_selection(selection_mode='multiple', use_checkbox=True)
-		ob_samples.configure_column('samples', suppressMenu=True, sortable=False)
-		ag_samples = AgGrid(samples,
-							ob_samples.build(),
-							height=600,
-							update_mode=GridUpdateMode.SELECTION_CHANGED,
-							theme=AgGridTheme.ALPINE)
-		selected_samples = [i['_selectedRowNodeInfo']['nodeRowIndex'] for i in ag_samples.selected_rows]
-
-	with col_plotraw:
-		# TODO add options for labels to sidebar
-		fig_raw_data = px.line(df_data[df_data.columns[selected_samples]], color_discrete_sequence=px.colors.sequential.Blues)
-		fig_raw_data.layout.template = 'plotly_dark'
-		fig_raw_data.layout.legend.traceorder = 'normal'
-		fig_raw_data.layout.margin = dict(l=20, r=20, t=20, b=20)
-		fig_raw_data.layout.xaxis.title.text = 'Time (min)'
-		fig_raw_data.layout.yaxis.title.text = 'Response'
-		fig_raw_data.layout.legend.title.text = 'Sample'
-		st.plotly_chart(fig_raw_data, use_container_width=True)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
@@ -199,8 +184,14 @@ def main():
 		system = [
 			{
 				'parameter': 't0',
-				'value': 0.65
-			}
+				'value': 0.65,
+				'units': 'min'
+			},
+			{
+				'parameter': 'flow',
+				'value': 1,
+				'units': 'mL/min'
+			},
 		]
 
 		df_system = pd.DataFrame(system)
@@ -213,7 +204,76 @@ def main():
 			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
 			theme=AgGridTheme.ALPINE,
 		)
-		system = ag_system.data.to_dict('records')
+		system_temp = ag_system.data.to_dict('records')
+		system = {}
+		for i in system_temp:
+			p = i['parameter']
+			v = i['value']
+			u = i['units']
+			system[p] = {'value':v, 'units':u}
+
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
+	data_file = st.file_uploader(
+		label='Upload raw data',
+		type=['txt', 'csv', 'xls', 'xlsx'])
+	if not data_file:
+		data_file = data_test
+
+	df_data_read = read_data(data_file)
+	if df_data_read is None:
+		return None
+
+	sample_names = [i for i in df_data_read.columns if i != "Baseline"]
+
+	subtract_baseline = st.checkbox('Subtract baseline')
+	if subtract_baseline:
+		# st.markdown("Doing good science :thumbsup:")
+		df_data = df_data_read[sample_names].sub(df_data_read["Baseline"], axis=0)
+	else:
+		df_data = df_data_read
+	
+	# df_data.index = df_data.index.astype('float')
+
+	samples = pd.DataFrame(columns=['samples'], data=df_data.columns)
+	col_dataselector, col_plotraw = st.columns([1, 3])
+
+	with col_dataselector:
+		ob_samples = GridOptionsBuilder.from_dataframe(samples)
+		ob_samples.configure_selection(selection_mode='multiple', use_checkbox=True)
+		ob_samples.configure_column('samples', suppressMenu=True, sortable=False)
+		ag_samples = AgGrid(samples,
+							ob_samples.build(),
+							height=600,
+							update_mode=GridUpdateMode.SELECTION_CHANGED,
+							theme=AgGridTheme.ALPINE)
+		selected_samples = [i['_selectedRowNodeInfo']['nodeRowIndex'] for i in ag_samples.selected_rows]
+
+	with col_plotraw:
+		# TODO add options for labels to sidebar
+		fig_raw_data = px.line(df_data[df_data.columns[selected_samples]], color_discrete_sequence=px.colors.sequential.Blues)
+		# xElem = fig_raw_data['layout']['shapes']
+		# shp_lst=[]
+		for i, a in enumerate(analytes):
+			analyte = a['analyte']
+			if analyte == "":
+				continue
+			fig_raw_data.add_vrect(
+				x0=a['from'],
+				x1=a['to'],
+				fillcolor="white",
+				opacity=0.1,
+				line_width=0,
+			)
+		fig_raw_data.layout.template = 'plotly_dark'
+		fig_raw_data.layout.legend.traceorder = 'normal'
+		fig_raw_data.layout.margin = dict(l=20, r=20, t=20, b=20)
+		fig_raw_data.layout.xaxis.title.text = 'Time (min)'
+		fig_raw_data.layout.yaxis.title.text = 'Response'
+		fig_raw_data.layout.legend.title.text = 'Sample'
+		st.plotly_chart(fig_raw_data, use_container_width=True)
+
+	st.markdown("<hr/>", unsafe_allow_html=True)
 
 	study_abv = {
 		'Lin': 'Linearity',
@@ -344,17 +404,10 @@ def main():
 			'LOQ': loq,
 			'LOD': lod,
 		}]))
-		# st.markdown(f'''
-		# 	Slope = {round(slope,2)} | 
-		# 	Intercept = {round(intercept,2)} | 
-		# 	R² = {round(r2,4)} | 
-		# 	STEYX = {round(steyx,2)} | 
-		# 	LOQ = {round(loq,2)} | 
-		# 	LOD = {round(lod,2)}
-		# ''')
+
 		mask = (df_data.index > a['from']) & (df_data.index <= a['to'])
 		df_peak = df_data.loc[mask]
-		peaks, properties = find_peaks(df_peak['Lin_100_01'], height=5, prominence=10, width=5)
+		peaks, properties = find_peaks(df_peak['Lin_100_01'], height=1, prominence=10, width=5)
 
 		peak_idx = peaks
 		peak_x = df_peak.index[peak_idx]
@@ -368,7 +421,6 @@ def main():
 		right_ip_x = df_peak.index[right_ip_idx]
 		right_ip_y = df_peak['Lin_100_01'][right_ip_x]
 
-
 		fig_peak = px.area(df_peak['Lin_100_01'])
 		fig_peak.add_trace(go.Scatter(x=peak_x, y=peak_y))
 		fig_peak.add_trace(go.Scatter(x=[left_ip_x], y=[left_ip_y]))
@@ -381,6 +433,17 @@ def main():
 		fig_peak.layout.legend.title.text = 'Sample'
 		st.plotly_chart(fig_peak, use_container_width=True)
 
+		t0 = system["t0"]['value']
+		tr = peak_x.values[0]
+		k = (tr-t0) / t0
+
+		
+
+		st.dataframe(pd.DataFrame([{
+			'tR': tr,
+			'k\'': k,
+
+		}]))
 
 		st.markdown("<hr/>", unsafe_allow_html=True)
 
