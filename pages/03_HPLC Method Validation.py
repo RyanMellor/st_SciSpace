@@ -17,8 +17,7 @@ from lmfit import models
 from sklearn.metrics import r2_score
 from sklearn.mixture import GaussianMixture
 from sklearn.linear_model import LinearRegression
-from scipy.signal import savgol_filter
-from scipy.signal import find_peaks
+from scipy.signal import savgol_filter, find_peaks, peak_widths
 from scipy.integrate import trapz
 import requests
 from io import BytesIO
@@ -91,70 +90,117 @@ def read_data(data_file, ext=None):
 	else:
 		return None
 
+def lerp_idx(series, idx):
+	# frac, whole = math.modf(idx)
+	idx_lower = math.floor(idx)
+	idx_upper = idx_lower + 1
+
+	# y = ymin+(ymax-ymin)(x-xmin)/(xmax-xmin)
+
+	x_lower = series.index[idx_lower]
+	x_upper = series.index[idx_upper]
+
+	y_lower = series[x_lower]
+	y_upper = series[x_upper]
+
+	x = x_lower + (x_upper-x_lower) * (idx-idx_lower)/(idx_upper-idx_lower)
+	y = y_lower + (y_upper-y_lower) * (idx-idx_lower)/(idx_upper-idx_lower)
+	
+	return x, y
+
 def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
 	st.markdown(r"""
 		### How to use this page
-			1. Define analyte integration ranges and system setup.
-			2. Download the raw data template provided in the sidebar.
-			3. Populate the workbook with your raw data.
-			4. Upload the populated workbook to this page.
+		1. Define analyte integration ranges and system setup.
+		2. Download the raw data template provided in the sidebar.
+		3. Populate the workbook with your raw data.
+		4. Upload the populated workbook to this page.
 
-		### [Validation](https://docs.sci-space.co.uk/methods-in-pharmacy/basic-concepts/validation)
-			Linearity (Lin)
+		""", unsafe_allow_html=True)
+
+	with st.expander("Validation"):
+		st.markdown(r"""
+
+			### Linearity (Lin)
 			- The property of a data set to fit a straight line plot.
 			- Triplicate preparations at 25, 50, 75, 100, 150, and 200% of the target value.
-			- R2 ≥ 0.999 and y-intercept ≤ 2% of target concentration.
+			- $$R^2 ≥ 0.999$$ and y-intercept $$\le 2%$$ of target concentration.
 
-			Accuracy (Acc)
+			<hr/>
+
+			### Accuracy (Acc)
 			- The closeness of an assay value to the true value.
 			- Triplicate preparations at 50, 100, and 100% of the target value.
-			- RSD ±10% for non-regulated products, ±2% for dosage forms, and ±1% for drug substance.
+			- $$RSD \pm 10%$$ for non-regulated products, $$\pm 2%$$ for dosage forms, and $$\pm 1%$$ for drug substance.
 
-			Repeatability (Rep)
+			<hr/>
+
+			### Repeatability (Rep)
 			- The closeness of agreement of multiple measurements of the same sample.
 			- 10 injections of the same sample at 100% of the target value.
-			- RSD ±5% for non-regulated products, ±2% for dosage forms, and ±1% for drug substance.
+			- $$RSD \pm 5%$$ for non-regulated products, $$\pm 2%$$ for dosage forms, and $$\pm 1%$$ for drug substance.
+			
+			<hr/>
+			
+			[SciSpace documentation on validation](https://docs.sci-space.co.uk/methods-in-pharmacy/basic-concepts/validation)
+			
+		""", unsafe_allow_html=True)
 
-		### [System Suitability](https://docs.sci-space.co.uk/methods-in-pharmacy/analysis/chromatography/system-suitability)
-			Efficiency (N)
+	with st.expander("System Suitability"):
+		st.markdown(r"""
+			### Efficiency ($$N$$)
 			- A measure of column efficiency, i.e. sharpness of peak realeive to retention time.
-			- N > 2000
+			- $$N = 5.54(\frac{t_R}{W_{0.05}})^2$$
+			- $$N > 2000$$
 
-			Resolution (Rs)
+			<hr/>
+
+			### Resolution ($$R_S$$)
 			- The separation of two compounds.
-			- Rs > 2
+			- $$R_S = \frac {2(t_{R2}-t_{R1})}{W_{0.5,1}-W_{0.5,2}}$$
+			- $$R_S > 2$$
 
-			Capacity Factor (k)
+			<hr/>
+
+			### Capacity Factor ($$k$$)
 			- The retention time of a peak relative to the hold-up time.
-			- k > 2
+			- $$k = \frac{t_R-t_0}{t_0}$$
+			- $$k > 2$$
 
-			Tailing factor (T)
+			<hr/>
+
+			### Tailing factor ($$T$$)
 			- The degree of peak symmetry
-			- T ≤ 2
+			- $$T = \frac{W_{0.05}}{2f}$$
+			- $$T \le 2$$
 
-	""", unsafe_allow_html=True)
+			<hr/>
+
+			[SciSpace documentation on system suitability](https://docs.sci-space.co.uk/methods-in-pharmacy/analysis/chromatography/system-suitability)
+
+		""", unsafe_allow_html=True)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
-	col_analytes, col_system = st.columns([2,1])
+	col_analytes, col_system = st.columns([3,2])
 
 	with col_analytes:
 		st.markdown("## Analytes")
 		analytes = [
 			{
-			'analyte': 'Analyte1',
-			'from': 4,
-			'to': 4.4,
-			'target': 200,
+				'analyte': 'Analyte1',
+				'from': 4,
+				'to': 4.4,
+				'target': 200,
 			},
 			{
-			'analyte': 'Analyte2',
-			'from': 5.1,
-			'to': 5.4,
-			'target': 200,
+				'analyte': 'Analyte2',
+				'from': 5.1,
+				'to': 5.4,
+				'target': 200,
 			},
 			{'analyte':''},
 			{'analyte':''},
@@ -176,6 +222,7 @@ def main():
 			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
 			theme=AgGridTheme.ALPINE,
 		)
+		ag_analytes.data.sort_values('from', inplace=True)
 		analytes = ag_analytes.data.to_dict('records')
 
 	with col_system:
@@ -233,8 +280,6 @@ def main():
 	else:
 		df_data = df_data_read
 	
-	# df_data.index = df_data.index.astype('float')
-
 	samples = pd.DataFrame(columns=['samples'], data=df_data.columns)
 	col_dataselector, col_plotraw = st.columns([1, 3])
 
@@ -272,8 +317,6 @@ def main():
 		fig_raw_data.layout.yaxis.title.text = 'Response'
 		fig_raw_data.layout.legend.title.text = 'Sample'
 		st.plotly_chart(fig_raw_data, use_container_width=True)
-
-	st.markdown("<hr/>", unsafe_allow_html=True)
 
 	study_abv = {
 		'Lin': 'Linearity',
@@ -315,7 +358,10 @@ def main():
 	log_x = False
 	log_y = False
 
-	for a in analytes:
+	prev_tr = None
+	prev_w_05 = None
+
+	for peak_num, a in enumerate(analytes):
 		analyte = a['analyte']
 		if analyte == "":
 			continue
@@ -409,22 +455,47 @@ def main():
 		df_peak = df_data.loc[mask]
 		peaks, properties = find_peaks(df_peak['Lin_100_01'], height=1, prominence=10, width=5)
 
+		widths = {}
+		for w in [0, 0.05, 0.5]:
+			width = peak_widths(df_peak['Lin_100_01'], peaks, 1-w)
+			from_x, from_y = lerp_idx(df_peak['Lin_100_01'], width[2][0])
+			to_x, to_y = lerp_idx(df_peak['Lin_100_01'], width[3][0])
+			widths[str(w)] = {
+				'height': from_y,
+				'width': to_x - from_x,
+				'from': from_x,
+				'to': to_x,
+			}
+		pprint(widths)
+
 		peak_idx = peaks
-		peak_x = df_peak.index[peak_idx]
+		peak_x = df_peak.index[peak_idx][0]
 		peak_y = df_peak['Lin_100_01'][peak_x]
+		baseline = peak_y - properties["prominences"][0]
 
-		left_ip_idx = math.floor(properties['left_ips'])
-		left_ip_x = df_peak.index[left_ip_idx]
-		left_ip_y = df_peak['Lin_100_01'][left_ip_x]
+		# left_ip_idx = math.floor(properties['left_ips'])
+		# left_ip_x = df_peak.index[left_ip_idx]
+		# left_ip_y = df_peak['Lin_100_01'][left_ip_x]
 
-		right_ip_idx = math.ceil(properties['right_ips'])
-		right_ip_x = df_peak.index[right_ip_idx]
-		right_ip_y = df_peak['Lin_100_01'][right_ip_x]
+		# right_ip_idx = math.ceil(properties['right_ips'])
+		# right_ip_x = df_peak.index[right_ip_idx]
+		# right_ip_y = df_peak['Lin_100_01'][right_ip_x]
 
 		fig_peak = px.area(df_peak['Lin_100_01'])
-		fig_peak.add_trace(go.Scatter(x=peak_x, y=peak_y))
-		fig_peak.add_trace(go.Scatter(x=[left_ip_x], y=[left_ip_y]))
-		fig_peak.add_trace(go.Scatter(x=[right_ip_x], y=[right_ip_y]))
+		fig_peak.add_trace(go.Scatter(x=[peak_x], y=[peak_y]))
+		# fig_peak.add_trace(go.Scatter(x=[left_ip_x], y=[left_ip_y]))
+		# fig_peak.add_trace(go.Scatter(x=[right_ip_x], y=[right_ip_y]))
+		fig_peak.add_shape(
+			type='line',
+			x0=peak_x, y0=baseline, x1=peak_x, y1=peak_y,
+			line=dict(color='Grey',)
+			)
+		for w, width in widths.items():
+			fig_peak.add_shape(
+				type='line',
+				x0=width['from'], y0=width['height'], x1=width['to'], y1=width['height'], 
+				line=dict(color='Grey',)
+				)
 		fig_peak.layout.template = 'plotly_dark'
 		fig_peak.layout.legend.traceorder = 'normal'
 		fig_peak.layout.margin = dict(l=20, r=20, t=20, b=20)
@@ -433,23 +504,92 @@ def main():
 		fig_peak.layout.legend.title.text = 'Sample'
 		st.plotly_chart(fig_peak, use_container_width=True)
 
-		t0 = system["t0"]['value']
-		tr = peak_x.values[0]
+		t0 = system['t0']['value']
+		tr = peak_x
 		k = (tr-t0) / t0
+		w_05 = widths['0.5']['width']
+		w_005 = widths['0.05']['width']
+		n = 5.45*(tr/w_05)**2
+		f = peak_x - widths['0.05']['from']
+		t = w_005 / (2*f)
 
+		if peak_num == 0:
+			rs = ''
+			prev_tr = tr
+			prev_w_05 = w_05
+			rs_pass = ''
+		else:
+			rs = round(1.18*(tr-prev_tr) / (w_05+prev_w_05),2)
+			prev_tr = tr
+			prev_w_05 = w_05
+			rs_pass = u'\u2713' if rs>2 else u'\u2715'
 		
+		n_pass = u'\u2713' if n>2000 else u'\u2715'
+		k_pass = u'\u2713' if k>2 else u'\u2715'
+		t_pass = u'\u2713' if t<=2 else u'\u2715'
 
-		st.dataframe(pd.DataFrame([{
-			'tR': tr,
-			'k\'': k,
+		d = {
+			'tR': [round(tr,2), ''      ],
+			'N':  [round(n,2),  n_pass  ],
+			'k':  [round(k,2),  k_pass  ],
+			'RS': [rs,          rs_pass ],
+			'T':  [round(t,2),  t_pass  ],
+		}
 
-		}]))
+		st.dataframe(pd.DataFrame.from_dict(d,orient='index').transpose())
+	
+		criteria_dict = {
+			"N":{
+				'passed' : n_pass,
+				'acceptance': '> 2000',
+				'obtained': int(n),
+				'advice': '''
+					- Increasing column length
+					- Decreasing particle size
+					- Reducing peak tailing
+					- Increasing temperature
+					- Reducing system extra-column volume
+				'''
+			},
+			"k":{
+				'passed' : k_pass,
+				'acceptance': '> 2',
+				'obtained': round(k, 2),
+				'advice': '''
+					- Using a weaker solvent (changing polarity)
+					- Changing the ionization (polarity) of the analyte by changing pH
+					- Using a stronger stationary phase (changing polarity)
+				'''
+			},
+			"R_S":{
+				'passed' : rs_pass,
+				'acceptance': '> 2',
+				'obtained': rs,
+				'advice': '''
+					- Changing column stationary phase
+					- Changing mobile phase pH
+					- Changing mobile phase solvent(s)
+				'''
+			}
+		}
 
-		st.markdown("<hr/>", unsafe_allow_html=True)
+		for c in criteria_dict:
+			d = criteria_dict[c]
+			if d['passed'] == u'\u2715':
+				st.markdown(f'''
+					### $${c}$$ &emsp;|&emsp; Fail
+					**Acceptance criteria** $${c + d['acceptance']}$$
+					&emsp;|&emsp;
+					**Obtained** {d['obtained']}
+
+					{d['advice']}
+				''', unsafe_allow_html=True)
+
+	st.markdown("<hr/>", unsafe_allow_html=True)
 
 	with st.expander('Calculated values'):
 		st.dataframe(df_calcs)
-
+	
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
 if __name__ == '__main__':
