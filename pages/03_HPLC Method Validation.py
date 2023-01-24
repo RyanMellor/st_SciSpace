@@ -28,12 +28,6 @@ import copy
 
 data_test = r"http://sci-space.co.uk//test_data/HPLC%20Method%20Validation%20-%20Test%20data.xlsx"
 
-data_template = r"http://sci-space.co.uk//test_data/HPLC%20Method%20Validation%20-%20Template.xlsx"
-df_data_template =  pd.read_excel(data_template, index_col=0)
-buffer_data_template = BytesIO()
-with pd.ExcelWriter(buffer_data_template, engine='xlsxwriter') as writer:
-	df_data_template.to_excel(writer)
-
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
 
@@ -48,14 +42,12 @@ st.set_page_config(
 
 st.title("HPLC Method Validation")
 
-logo_url = r"http://sci-space.co.uk//scispace.png"
-logo_response = requests.get(logo_url)
-logo = Image.open(BytesIO(logo_response.content))
-
-st.sidebar.image(logo)
-
 page_setup = """
 	<div>
+		<a href="http://sci-space.co.uk/" target="_blank">
+			<img src="http://sci-space.co.uk//scispace.png">
+		</a>
+		</p>
 		<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
 			<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
 		</a>
@@ -69,9 +61,18 @@ page_setup = """
 	"""
 st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
 
+@st.cache(allow_output_mutation=True)
+def get_template():
+	data_template = r"http://sci-space.co.uk//test_data/HPLC%20Method%20Validation%20-%20Template.xlsx"
+	df_data_template =  pd.read_excel(data_template, index_col=0)
+	buffer_data_template = BytesIO()
+	with pd.ExcelWriter(buffer_data_template, engine='xlsxwriter') as writer:
+		df_data_template.to_excel(writer)
+	return buffer_data_template
+
 st.sidebar.download_button(
 	'Download Data Template',
-	data = buffer_data_template,
+	data = get_template(),
 	file_name = 'SciSpace - HPLC Validation Template.xlsx'
 	)
 
@@ -234,11 +235,11 @@ def main():
 				'value': 0.65,
 				'units': 'min'
 			},
-			{
-				'parameter': 'flow',
-				'value': 1,
-				'units': 'mL/min'
-			},
+			# {
+			# 	'parameter': 'flow',
+			# 	'value': 1,
+			# 	'units': 'mL/min'
+			# },
 		]
 
 		df_system = pd.DataFrame(system)
@@ -273,7 +274,7 @@ def main():
 
 	sample_names = [i for i in df_data_read.columns if i != "Baseline"]
 
-	subtract_baseline = st.checkbox('Subtract baseline')
+	subtract_baseline = st.checkbox('Subtract baseline', True)
 	if subtract_baseline:
 		# st.markdown("Doing good science :thumbsup:")
 		df_data = df_data_read[sample_names].sub(df_data_read["Baseline"], axis=0)
@@ -285,7 +286,7 @@ def main():
 
 	with col_dataselector:
 		ob_samples = GridOptionsBuilder.from_dataframe(samples)
-		ob_samples.configure_selection(selection_mode='multiple', use_checkbox=True)
+		ob_samples.configure_selection(selection_mode='multiple', use_checkbox=True, pre_selected_rows=[0])
 		ob_samples.configure_column('samples', suppressMenu=True, sortable=False)
 		ag_samples = AgGrid(samples,
 							ob_samples.build(),
@@ -427,7 +428,6 @@ def main():
 		with col_rep:
 			df_rep = df_calcs[df_calcs['study']=='Repeatability']
 			df_rep_desc = df_rep.groupby('level')[f'Recovery_{analyte}'].describe()
-			# print(df_rep_desc)
 			fig_rep = px.bar(
 				x=df_rep_desc.index,
 				y=df_rep_desc['mean'],
@@ -442,14 +442,15 @@ def main():
 			fig_rep.update_xaxes(type='category')
 			st.plotly_chart(fig_rep, use_container_width=True)
 		
-		st.dataframe(pd.DataFrame([{
-			'Slope': slope,
-			'Intercept': intercept,
-			'R²': r2,
-			'STEYX': steyx,
-			'LOQ': loq,
-			'LOD': lod,
-		}]))
+		df = pd.DataFrame([{
+			'Slope':     round(slope,2),
+			'Intercept': round(intercept,2),
+			'R²':        round(r2,4),
+			'STEYX':     round(steyx,2),
+			'LOQ':       round(loq,2),
+			'LOD':       round(lod,2),
+		}], index=['Obtained'])
+		st.dataframe(df)
 
 		mask = (df_data.index > a['from']) & (df_data.index <= a['to'])
 		df_peak = df_data.loc[mask]
@@ -466,7 +467,6 @@ def main():
 				'from': from_x,
 				'to': to_x,
 			}
-		pprint(widths)
 
 		peak_idx = peaks
 		peak_x = df_peak.index[peak_idx][0]
@@ -482,7 +482,6 @@ def main():
 		# right_ip_y = df_peak['Lin_100_01'][right_ip_x]
 
 		fig_peak = px.area(df_peak['Lin_100_01'])
-		fig_peak.add_trace(go.Scatter(x=[peak_x], y=[peak_y]))
 		# fig_peak.add_trace(go.Scatter(x=[left_ip_x], y=[left_ip_y]))
 		# fig_peak.add_trace(go.Scatter(x=[right_ip_x], y=[right_ip_y]))
 		fig_peak.add_shape(
@@ -528,21 +527,23 @@ def main():
 		k_pass = u'\u2713' if k>2 else u'\u2715'
 		t_pass = u'\u2713' if t<=2 else u'\u2715'
 
-		d = {
-			'tR': [round(tr,2), ''      ],
-			'N':  [round(n,2),  n_pass  ],
-			'k':  [round(k,2),  k_pass  ],
-			'RS': [rs,          rs_pass ],
-			'T':  [round(t,2),  t_pass  ],
+		pass_dict = {
+			'tR':  [round(tr,2), ''      ],
+			'N':   [int(n),      n_pass  ],
+			'k':   [round(k,2),  k_pass  ],
+			'R_S': [rs,          rs_pass ],
+			'T':   [round(t,2),  t_pass  ],
 		}
 
-		st.dataframe(pd.DataFrame.from_dict(d,orient='index').transpose())
+		df = pd.DataFrame.from_dict(pass_dict,orient='index').transpose()
+		df.index = ['Obtained','Pass']
+		st.dataframe(df)
 	
 		criteria_dict = {
 			"N":{
-				'passed' : n_pass,
+				'passed' : pass_dict['N'][1],
 				'acceptance': '> 2000',
-				'obtained': int(n),
+				'obtained': pass_dict['N'][0],
 				'advice': '''
 					- Increasing column length
 					- Decreasing particle size
@@ -552,9 +553,9 @@ def main():
 				'''
 			},
 			"k":{
-				'passed' : k_pass,
+				'passed' : pass_dict['k'][1],
 				'acceptance': '> 2',
-				'obtained': round(k, 2),
+				'obtained': pass_dict['k'][0],
 				'advice': '''
 					- Using a weaker solvent (changing polarity)
 					- Changing the ionization (polarity) of the analyte by changing pH
@@ -562,13 +563,27 @@ def main():
 				'''
 			},
 			"R_S":{
-				'passed' : rs_pass,
+				'passed' : pass_dict['R_S'][1],
 				'acceptance': '> 2',
-				'obtained': rs,
+				'obtained': pass_dict['R_S'][0],
 				'advice': '''
 					- Changing column stationary phase
 					- Changing mobile phase pH
 					- Changing mobile phase solvent(s)
+				'''
+			},
+			"T":{
+				'passed' : pass_dict['T'][1],
+				'acceptance': '\le 2',
+				'obtained': pass_dict['T'][0],
+				'advice': '''
+					- Operate at a lower pH when analyzing acidic compounds
+					- Operate at a higher pH when analyzing basic compounds
+					- Use a highly deactivated column
+					- Consider the possibility of mass overload
+					- Consider the possibility of column bed deformation
+					- Use a sample clean-up procedure
+					- If **all** peaks are failing, wash or replace the column
 				'''
 			}
 		}

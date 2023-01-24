@@ -13,3 +13,5 @@ streamlit-aggrid==0.3.3
 openpyxl==3.0.10
 XlsxWriter==3.0.3
 statsmodels==0.13.2
+colorutils==0.3.0
+simplification==0.6.2
