@@ -39,12 +39,14 @@ st.set_page_config(
 
 st.title("Deconvolution")
 
+logo_url = r"http://sci-space.co.uk//scispace.png"
+logo_response = requests.get(logo_url)
+logo = Image.open(BytesIO(logo_response.content))
+
+st.sidebar.image(logo)
+
 page_setup = """
 	<div>
-		<a href="http://sci-space.co.uk/" target="_blank">
-			<img src="http://sci-space.co.uk//scispace.png">
-		</a>
-		</p>
 		<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
 			<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
 		</a>

@@ -14,8 +14,9 @@ from matplotlib import pyplot as plt
 import math
 import requests
 from io import BytesIO
-from colorutils import *
+from colorutils import rgb_to_hsv, rgb_to_hex
 from simplification.cutil import simplify_coords
+import extcolors
 
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
@@ -32,18 +33,20 @@ fav_url = r"http://sci-space.co.uk//favicon.ico"
 fav_response = requests.get(fav_url)
 fav = Image.open(BytesIO(fav_response.content))
 st.set_page_config(
-    page_title="Data Extractor",
-    page_icon=fav,
+	page_title="Data Extractor",
+	page_icon=fav,
 )
 
 st.title("Data extractor")
 
+logo_url = r"http://sci-space.co.uk//scispace.png"
+logo_response = requests.get(logo_url)
+logo = Image.open(BytesIO(logo_response.content))
+
+st.sidebar.image(logo)
+
 page_setup = """
 	<div>
-		<a href="http://sci-space.co.uk/" target="_blank">
-			<img src="http://sci-space.co.uk//scispace.png">
-		</a>
-		</p>
 		<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
 			<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
 		</a>
@@ -80,16 +83,17 @@ def lerp_gaps(data):
 	return data
 
 def resize_img(img: Image, max_height: int=600, max_width: int=600):
-    # Resize the image to be a max of 600x600 by default, or whatever the user 
-    # provides. If streamlit has an attribute to expose the default width of a widget,
-    # we should use that instead.
-    if img.height > max_height:
-        ratio = max_height / img.height
-        img = img.resize((int(img.width * ratio), int(img.height * ratio)))
-    if img.width > max_width:
-        ratio = max_width / img.width
-        img = img.resize((int(img.width * ratio), int(img.height * ratio)))
-    return img, ratio
+	# Resize the image to be a max of 600x600 by default, or whatever the user 
+	# provides. If streamlit has an attribute to expose the default width of a widget,
+	# we should use that instead.
+	ratio = 1
+	if img.height > max_height:
+		ratio = max_height / img.height
+		img = img.resize((int(img.width * ratio), int(img.height * ratio)))
+	if img.width > max_width:
+		ratio = max_width / img.width
+		img = img.resize((int(img.width * ratio), int(img.height * ratio)))
+	return img, ratio
 
 def main():
 
@@ -157,7 +161,7 @@ def main():
 	}
 
 	canvas_result = st_canvas(
-		key="canvas",
+		# key="canvas",
 		background_image = img,
 		height = img.height,
 		width = img.width,
@@ -218,9 +222,18 @@ def main():
 		if i < len(cvimg):
 			rgb_col.append(cvimg[i][abscissa-1])
 	# rgb_list = rgb.reshape((rgb.shape[0] * rgb.shape[1], 3))
-	clt = KMeans(n_clusters = 30)
-	clt.fit(rgb_col)
-	rgb_unique = clt.cluster_centers_
+
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
+	# clt = KMeans(n_clusters = 10)
+	# clt.fit(rgb_col)
+	# rgb_unique = clt.cluster_centers_
+
+	tolerance = st.number_input('Tolerance', 0, 100, 15)
+	limit = st.number_input('Limit', 1, 30, 5)
+
+	colors, pixel_count = extcolors.extract_from_image(img_crop, tolerance = tolerance, limit = limit)
+	rgb_unique = [np.array(i[0]) for i in colors]
 
 	for rgb_val in rgb_unique:
 		if list(rgb_val) != [255,255,255]:
@@ -230,7 +243,7 @@ def main():
 			
 			series[line] = {}
 			series[line]['rgb'] = rgb_val
-			series[line]['hsv'] = rgb_to_hsv(rgb_val)* np.array([179/360, 255, 255])
+			# series[line]['hsv'] = rgb_to_hsv(rgb_val) * np.array([179/360, 255, 255])
 			series[line]['hex'] = rgb_to_hex(rgb_val)
 			series[line]['data'] =  [[i, None] for i in xaxis]
 
@@ -282,9 +295,6 @@ def main():
 		data_rdp = simplify_coords(data_rdp, epsilon)
 		series[line]['data_rdp'] = data_rdp
 
-
-
-	st.markdown("<hr/>", unsafe_allow_html=True)
 
 	fig_raw_data = go.Figure()
 	for line in series:
