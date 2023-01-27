@@ -25,7 +25,7 @@ import urllib.request
 import math
 import copy
 
-data_test = './data/public_test_data/HPLC Method Validation - Test data.xlsx'
+data_test = './assets/public_data/HPLC Method Validation - Test data.xlsx'
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
@@ -56,20 +56,13 @@ page_setup = """
 """
 st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
 
-@st.cache(allow_output_mutation=True)
-def get_template():
-	data_template = r"http://sci-space.co.uk//test_data/HPLC%20Method%20Validation%20-%20Template.xlsx"
-	df_data_template =  pd.read_excel(data_template, index_col=0)
-	buffer_data_template = BytesIO()
-	with pd.ExcelWriter(buffer_data_template, engine='xlsxwriter') as writer:
-		df_data_template.to_excel(writer)
-	return buffer_data_template
-
-st.sidebar.download_button(
-	'Download Data Template',
-	data = get_template(),
-	file_name = 'SciSpace - HPLC Validation Template.xlsx'
-	)
+template_path = './assets/public_data/HPLC Method Validation - Template.xlsx'
+with open(template_path, 'rb') as f:
+	st.sidebar.download_button(
+		'Download Data Template',
+		data = f,
+		file_name = 'SciSpace - HPLC Validation Template.xlsx'
+		)
 
 @st.cache()
 def read_data(data_file, ext=None):
@@ -119,6 +112,7 @@ def main():
 			1. Bask in the glory of your validated method.
 			<br/>
 			""", unsafe_allow_html=True)
+		st.image("./assets/public_data/HPLC Method Validation - Nomenclature.png", )
 
 	with st.expander("Validation"):
 		st.markdown(r"""
@@ -158,14 +152,14 @@ def main():
 			<hr/>
 
 			### Resolution ($$R_S$$)
-			- The separation of two compounds.
+			- The separation of two peaks.
 			- $$R_S = \frac {2(t_{R2}-t_{R1})}{W_{0.5,1}-W_{0.5,2}}$$
 			- $$R_S > 2$$
 
 			<hr/>
 
 			### Capacity Factor ($$k$$)
-			- The retention time of a peak relative to the hold-up time.
+			- The retention time of an analyte relative to the hold-up time.
 			- $$k = \frac{t_R-t_0}{t_0}$$
 			- $$k > 2$$
 
