@@ -23,7 +23,7 @@ import requests
 from io import BytesIO
 import urllib.request
 import math
-import copy
+# import copy
 
 
 data_test = r"http://sci-space.co.uk//test_data/HPLC%20Method%20Validation%20-%20Test%20data.xlsx"
