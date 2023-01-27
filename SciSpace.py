@@ -1,15 +1,12 @@
 import streamlit as st
 from PIL import Image
-import requests
-from io import BytesIO
-
 
 PRIMARY_COLOR = "#4589ff"
 
+logo = Image.open('./scispace.png')
+fav = Image.open('./favicon.ico')
+
 # ---- Page setup ----
-fav_url = r"http://sci-space.co.uk//favicon.ico"
-fav_response = requests.get(fav_url)
-fav = Image.open(BytesIO(fav_response.content))
 st.set_page_config(
     page_title="SciSpace",
     page_icon=fav,
@@ -17,17 +14,7 @@ st.set_page_config(
 
 st.title("SciSpace")
 
-logo_url = r"http://sci-space.co.uk//scispace.png"
-logo_response = requests.get(logo_url)
-logo = Image.open(BytesIO(logo_response.content))
-
 st.sidebar.image(logo)
-
-# add_logo = '''
-#     <a href="http://sci-space.co.uk/" target="_blank">
-#         <img src="http://sci-space.co.uk/scispace.png" alt="SciSpace">
-#     </a>
-# '''
 
 page_setup = """
 	<div>
@@ -39,12 +26,8 @@ page_setup = """
 	<style>
 		footer {visibility: hidden;}
 	</style>
-	"""
+"""
 st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
-
-
-
-
 
 def main():
     st.markdown('''
