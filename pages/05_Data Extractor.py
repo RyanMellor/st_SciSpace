@@ -62,7 +62,7 @@ def resize_img(img: Image, max_height: int = 600, max_width: int = 600):
 def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
-
+	st.markdown("### Setup")
 	img_file = st.file_uploader(
 		label='Upload an image to analyze', type=FILETYPES_IMG)
 
@@ -83,103 +83,107 @@ def main():
 	# Add a column to contain image settings
 	# with col_img_settings:
 
-	col_settings_labels, col_settings_axes, col_settings_detect = st.columns(3)
+	with st.expander("Setup chart"):
+		col_settings_labels, col_settings_axes, col_settings_detect = st.columns(3)
 
-	with col_settings_labels:
-		st.write("### Labels")
-		chart_title = st.text_input('Chart title', "title")
-		x_title = st.text_input('x-axis label', "x-axis")
-		x_units = st.text_input('x-axis units', "")
-		y_title = st.text_input('y-axis label', "y-axis")
-		y_units = st.text_input('y-axis units', "")
+		with col_settings_labels:
+			st.write("### Labels")
+			chart_title = st.text_input('Chart title', "title")
+			x_title = st.text_input('x-axis label', "x-axis")
+			x_units = st.text_input('x-axis units', "")
+			y_title = st.text_input('y-axis label', "y-axis")
+			y_units = st.text_input('y-axis units', "")
 
-	with col_settings_axes:
-		st.write("### Axes")
-		xmin = st.number_input('xmin', 0)
-		xmax = st.number_input('xmax', 20)
-		ymin = st.number_input('ymin', 0)
-		ymax = st.number_input('ymax', 1)
-		xlog = st.checkbox('x log', False)
-		ylog = st.checkbox('y log', False)
+		with col_settings_axes:
+			st.write("### Axes")
+			xmin = st.number_input('xmin', 0)
+			xmax = st.number_input('xmax', 20)
+			ymin = st.number_input('ymin', 0)
+			ymax = st.number_input('ymax', 1)
+			xlog = st.checkbox('x log', False)
+			ylog = st.checkbox('y log', False)
 
-	with col_settings_detect:
-		st.write("### Detection")
-		# minimalX = False # If True, only export Y values which have at least one associated Y
-		epsilon = st.number_input('Epsilon', 0.0001, format="%.4f",
-								  help="Epsilon parameter of Ramer–Douglas–Peucker algorithm iterative end-point fit algorithm. Increase for fewer data points")
-		# [0, 1] Vertical slice of img used for series finding, should be a point where series do not overlap
-		abscissa = st.number_input('Abscissa', 0.45)
-		# Set how different two colours must be to be considered different series, default [1,60,30]
-		hsv_tol = [1, 60, 3]
-		# Set how different two colours must be to be considered different series, default []
-		rgb_tol = [6]*3
+		with col_settings_detect:
+			st.write("### Detection")
+			# minimalX = False # If True, only export Y values which have at least one associated Y
+			epsilon = st.number_input('Epsilon', 0.0001, format="%.4f",
+									help="Epsilon parameter of Ramer–Douglas–Peucker algorithm iterative end-point fit algorithm. Increase for fewer data points")
+			# [0, 1] Vertical slice of img used for series finding, should be a point where series do not overlap
+			abscissa = st.number_input('Abscissa', 0.45)
+			# Set how different two colours must be to be considered different series, default [1,60,30]
+			hsv_tol = [1, 60, 3]
+			# Set how different two colours must be to be considered different series, default []
+			rgb_tol = [6]*3
 
-	# Add a column to contain original image
-	# with col_original_img:
-	initial_drawing = {
-		'version': '4.4.0',
-		'objects': [
-			{
-				'type': 'rect', 'originX': 'left', 'originY': 'top',
-				'left': img.width*0.06, 'top': img.height*0.03,
-				'width': img.width*0.93, 'height': img.height*0.83,
-				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
-			}
-		]
-	}
+	with st.expander("Select region of interest", expanded=True):
+		# Add a column to contain original image
+		# with col_original_img:
+		initial_drawing = {
+			'version': '4.4.0',
+			'objects': [
+				{
+					'type': 'rect', 'originX': 'left', 'originY': 'top',
+					'left': img.width*0.06, 'top': img.height*0.03,
+					'width': img.width*0.93, 'height': img.height*0.83,
+					'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
+				}
+			]
+		}
 
-	canvas_result = st_canvas(
-		# key="canvas",
-		background_image=img,
-		height=img.height,
-		width=img.width,
-		drawing_mode="transform",
-		display_toolbar=False,
-		initial_drawing=initial_drawing,
-	)
-	st.caption(
-		"Warning: Doubleclicking objects will remove them and you will have to refresh the page")
+		canvas_result = st_canvas(
+			# key="canvas",
+			background_image=img,
+			height=img.height,
+			width=img.width,
+			drawing_mode="transform",
+			display_toolbar=False,
+			initial_drawing=initial_drawing,
+		)
+		st.caption(
+			"Warning: Doubleclicking objects will remove them and you will have to refresh the page")
 
-	if not canvas_result.json_data:
-		return None
-	try:
-		crop_rect = [d for d in canvas_result.json_data['objects']
-					 if d['type'] == 'rect'][0]
-	except:
-		st.write("Oops! You've removed your ROI, please refresh the page")
-		return None
-	crop_left = crop_rect['left']
-	crop_top = crop_rect['top']
-	crop_right = crop_left + crop_rect['width']*crop_rect['scaleX']
-	crop_bottom = crop_top + crop_rect['height']*crop_rect['scaleY']
-	img_crop = img_original.crop((
-		int((crop_left / img.width) * img_original.width),
-		int((crop_top / img.height) * img_original.height),
-		int((crop_right / img.width) * img_original.width),
-		int((crop_bottom / img.height) * img_original.height)
-	))
+		if not canvas_result.json_data:
+			return None
+		try:
+			crop_rect = [d for d in canvas_result.json_data['objects']
+						if d['type'] == 'rect'][0]
+		except:
+			st.write("Oops! You've removed your ROI, please refresh the page")
+			return None
+		crop_left = crop_rect['left']
+		crop_top = crop_rect['top']
+		crop_right = crop_left + crop_rect['width']*crop_rect['scaleX']
+		crop_bottom = crop_top + crop_rect['height']*crop_rect['scaleY']
+		img_crop = img_original.crop((
+			int((crop_left / img.width) * img_original.width),
+			int((crop_top / img.height) * img_original.height),
+			int((crop_right / img.width) * img_original.width),
+			int((crop_bottom / img.height) * img_original.height)
+		))
 
-	cvimg = np.array(img_crop)
-	cvimg_height, cvimg_width = cvimg.shape[:2]
-	st.image(cvimg)
+		cvimg = np.array(img_crop)
+		cvimg_height, cvimg_width = cvimg.shape[:2]
 
-	series = {}
+		series = {}
 
-	if xlog:
-		xaxis = list(np.logspace(start=np.log10(xmin), stop=np.log10(xmax), num=cvimg_width))
-	else:
-		xaxis = [xmin+i*(xmax-xmin)/cvimg_width for i in range(cvimg_width)]
-	if ylog:
-		yaxis = np.logspace(start=np.log10(ymin), stop=np.log10(ymax), num=cvimg_height)
-	else:
-		yaxis = [ymin+i*(ymax-ymin)/cvimg_height for i in range(cvimg_height)]
+		if xlog:
+			xaxis = list(np.logspace(start=np.log10(xmin), stop=np.log10(xmax), num=cvimg_width))
+		else:
+			xaxis = [xmin+i*(xmax-xmin)/cvimg_width for i in range(cvimg_width)]
+		if ylog:
+			yaxis = np.logspace(start=np.log10(ymin), stop=np.log10(ymax), num=cvimg_height)
+		else:
+			yaxis = [ymin+i*(ymax-ymin)/cvimg_height for i in range(cvimg_height)]
 
-	x_label = x_title
-	if x_units != "":
-		x_label += " (" + x_units + ")"
-	y_label = y_title
-	if y_units != "":
-		y_label += " (" + y_units + ")"
+		x_label = x_title
+		if x_units != "":
+			x_label += " (" + x_units + ")"
+		y_label = y_title
+		if y_units != "":
+			y_label += " (" + y_units + ")"
+			
+	with st.expander("Region of interest"):
+		st.image(cvimg)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
@@ -256,17 +260,17 @@ def main():
 	fig_raw_data.layout.xaxis.title.text = x_label
 	fig_raw_data.layout.yaxis.title.text = y_label
 	fig_raw_data.layout.legend.title.text = chart_title
-	st.plotly_chart(fig_raw_data, use_container_width=True)
 
 	extracted_data.sort_index(inplace=True)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
-	with st.expander("Extracted data"):
+	with st.expander("Extracted data", expanded=True):
 		st.download_button(
 			label = "Download extracted data",
 			data = extracted_data.to_csv().encode("utf-8"),
 			file_name = "extracted_data.csv")
+		st.plotly_chart(fig_raw_data, use_container_width=True)
 		st.dataframe(extracted_data)
 
 
