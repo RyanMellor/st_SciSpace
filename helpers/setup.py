@@ -12,6 +12,7 @@ def setup_page(page_title):
     st.set_page_config(
         page_title=page_title,
         page_icon=fav(),
+        # layout="wide",
     )
 
     st.title(page_title)

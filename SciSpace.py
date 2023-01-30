@@ -4,14 +4,12 @@ from helpers import setup
 
 PRIMARY_COLOR = "#4589ff"
 
-setup.setup_page("Scispace")
+setup.setup_page("SciSpace")
 
 def main():
     st.markdown('''
         ---
-        Homepage of SciSpace Streamlit applications.
-
-        Visit [SciSpace](http://sci-space.co.uk) for more information
+        Homepage of [SciSpace](http://sci-space.co.uk) Streamlit applications.
 
         ---
     ''')
