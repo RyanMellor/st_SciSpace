@@ -40,10 +40,11 @@ def main():
 		
 	st.markdown("### Data selection")
 
-	with st.expander("Upload data and select signal to be deconvoluted", expanded=True):
+	with st.expander("Upload raw data and select signal to be deconvoluted", expanded=True):
 
 		data_file = st.file_uploader(
 			label='Upload raw data',
+			label_visibility='collapsed',
 			type=['txt', 'csv', 'xls', 'xlsx'])
 
 		if not data_file:
@@ -92,6 +93,7 @@ def main():
 
 		model_file = st.file_uploader(
 			label='Upload deconvolution model',
+			label_visibility='collapsed',
 			type=['txt'])
 		if not model_file:
 			model_file = model_test
