@@ -96,7 +96,7 @@ def main():
 
 	if not img_file:
 		img_original = img_test
-		st.caption("The example shown here is of siciac coated nanoparticles. The analyzer distinguishes three distinct populations for core, shell, and contaminant silica particles.")
+		st.caption("The example shown here is of silica coated gold nanoparticles. The analyzer distinguishes three distinct populations for core, shell, and contaminant silica particles.")
 	else:
 		img_original = Image.open(img_file)
 	img_original = img_original.convert("RGB")
