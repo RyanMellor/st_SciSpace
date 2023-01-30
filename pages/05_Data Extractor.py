@@ -14,7 +14,7 @@ import extcolors
 from helpers import setup
 setup.setup_page("Data Extractor")
 
-img_test = Image.open("./assets/public_data/Data Extractor - Test1.png")
+img_test = "./assets/public_data/Data Extractor - Test1.png"
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
@@ -62,29 +62,19 @@ def resize_img(img: Image, max_height: int = 600, max_width: int = 600):
 def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
+
 	st.markdown("### Setup")
+
 	img_file = st.file_uploader(
 		label='Upload an image to analyze', type=FILETYPES_IMG)
-
 	if not img_file:
-		img_original = img_test
-	else:
-		img_original = Image.open(img_file)
+		img_file = img_test
+	img_original = Image.open(img_file).convert('RGB')
 	img = img_original.copy()
-	img.convert('RGB')
 	img, scalefactor = resize_img(img_original)
 
-	# cvimg_gray = cv2.cvtColor(cvimg, cv2.COLOR_BGR2GRAY)
-	# cvimg_hsv = cv2.cvtColor(cvimg, cv2.COLOR_BGR2HSV)
-	# cvimg_rgb = cv2.cvtColor(cvimg, cv2.COLOR_BGR2RGB)
-
-	# col_original_img, col_img_settings = st.columns([3,1])
-
-	# Add a column to contain image settings
-	# with col_img_settings:
-
 	with st.expander("Setup chart"):
-		col_settings_labels, col_settings_axes, col_settings_detect = st.columns(3)
+		col_settings_labels, col_settings_axes = st.columns(2)
 
 		with col_settings_labels:
 			st.write("### Labels")
@@ -96,24 +86,13 @@ def main():
 
 		with col_settings_axes:
 			st.write("### Axes")
-			xmin = st.number_input('xmin', 0)
-			xmax = st.number_input('xmax', 20)
-			ymin = st.number_input('ymin', 0)
-			ymax = st.number_input('ymax', 1)
-			xlog = st.checkbox('x log', False)
-			ylog = st.checkbox('y log', False)
+			xmin = st.number_input('xmin', value=0)
+			xmax = st.number_input('xmax', value=20)
+			ymin = st.number_input('ymin', value=0)
+			ymax = st.number_input('ymax', value=1)
+			# xlog = st.checkbox('x log', False)
+			# ylog = st.checkbox('y log', False)
 
-		with col_settings_detect:
-			st.write("### Detection")
-			# minimalX = False # If True, only export Y values which have at least one associated Y
-			epsilon = st.number_input('Epsilon', 0.0001, format="%.4f",
-									help="Epsilon parameter of Ramer–Douglas–Peucker algorithm iterative end-point fit algorithm. Increase for fewer data points")
-			# [0, 1] Vertical slice of img used for series finding, should be a point where series do not overlap
-			abscissa = st.number_input('Abscissa', 0.45)
-			# Set how different two colours must be to be considered different series, default [1,60,30]
-			hsv_tol = [1, 60, 3]
-			# Set how different two colours must be to be considered different series, default []
-			rgb_tol = [6]*3
 
 	with st.expander("Select region of interest", expanded=True):
 		# Add a column to contain original image
@@ -166,14 +145,14 @@ def main():
 
 		series = {}
 
-		if xlog:
-			xaxis = list(np.logspace(start=np.log10(xmin), stop=np.log10(xmax), num=cvimg_width))
-		else:
-			xaxis = [xmin+i*(xmax-xmin)/cvimg_width for i in range(cvimg_width)]
-		if ylog:
-			yaxis = np.logspace(start=np.log10(ymin), stop=np.log10(ymax), num=cvimg_height)
-		else:
-			yaxis = [ymin+i*(ymax-ymin)/cvimg_height for i in range(cvimg_height)]
+		# if xlog:
+		# 	xaxis = list(np.logspace(start=np.log10(xmin), stop=np.log10(xmax), num=cvimg_width))
+		# else:
+		xaxis = [xmin+i*(xmax-xmin)/cvimg_width for i in range(cvimg_width)]
+		# if ylog:
+		# 	yaxis = np.logspace(start=np.log10(ymin), stop=np.log10(ymax), num=cvimg_height)
+		# else:
+		yaxis = [ymin+i*(ymax-ymin)/cvimg_height for i in range(cvimg_height)]
 
 		x_label = x_title
 		if x_units != "":
@@ -187,37 +166,40 @@ def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
-	tolerance = st.number_input('Tolerance', 0, 100, 15)
-	limit = st.number_input('Limit', 1, 30, 5)
+	st.markdown("### Detection settings")
+
+	with st.expander("Detection settings", expanded=True):
+		tolerance = st.number_input('Tolerance', 0, 100, 15,
+			help="Difference between two distinct colors.")
+		limit = st.number_input('Limit', 1, 30, 5,
+			help="Number of traces to look for.")
+		epsilon = st.number_input('Epsilon', 0.0001, format="%.4f", step=0.0001,
+			help="Epsilon parameter of Ramer–Douglas–Peucker algorithm iterative end-point fit algorithm. Increase for fewer data points.")
 
 	colors, pixel_count = extcolors.extract_from_image(
 		img_crop, tolerance=tolerance, limit=limit)
 	rgb_unique = [np.array(i[0]) for i in colors]
 
-	for rgb_val in rgb_unique:
-		if list(rgb_val) != [255, 255, 255]:
-			line = len(series)
-			series[line] = {}
-			series[line]['rgb'] = rgb_val
-			series[line]['hex'] = rgb_to_hex(rgb_val)
-			series[line]['data'] = [[i, None] for i in xaxis]
+	for i, rgb_val in enumerate(rgb_unique):
+		if not list(rgb_val) == [255, 255, 255]:
+			series[i] = {}
+			series[i]['rgb'] = rgb_val
+			series[i]['hex'] = rgb_to_hex(rgb_val)
+			series[i]['data'] = [[i, None] for i in xaxis]
 
+	rgb_tol = [6]*3
 	for line in series:
-		line_rgb = (series[line]['rgb'])
+		line_rgb = series[line]['rgb']
 		lower = np.array(line_rgb - rgb_tol)
-		for a in range(len(lower)):
-			if lower[a] < 0:
-				lower[a] = 0
+		lower = np.array([i if i>0 else 0 for i in lower])
 		upper = np.array(line_rgb + rgb_tol)
-		for a in range(len(upper)):
-			if upper[a] > 255:
-				upper[a] = 255
+		upper = np.array([i if i<255 else 255 for i in upper])
+		print(lower,upper)
 		mask = cv2.inRange(cvimg, lower, upper)
-		# res = cv2.bitwise_and(cvimg, cvimg, mask=mask)
 
 		series[line]['mask'] = mask
-
 		data = series[line]['data']
+
 		h = len(mask)
 		w = len(mask[0])
 
@@ -252,7 +234,7 @@ def main():
 		y = [float(i) for i in data_t[1]]
 		fig_raw_data.add_trace(go.Scatter(x=x, y=y, marker_color=col))
 		temp_df = pd.DataFrame(index=x, data=y, columns=[i])
-		extracted_data = pd.concat([extracted_data, temp_df])
+		extracted_data = pd.concat([extracted_data, temp_df], axis="columns")
 
 	fig_raw_data.layout.template = 'plotly_dark'
 	fig_raw_data.layout.legend.traceorder = 'normal'
@@ -265,12 +247,14 @@ def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
-	with st.expander("Extracted data", expanded=True):
+	st.markdown("### Output")
+	with st.expander("Extracted data - plot", expanded=True):
+		st.plotly_chart(fig_raw_data, use_container_width=True)
+	with st.expander("Extracted data - raw"):
 		st.download_button(
 			label = "Download extracted data",
 			data = extracted_data.to_csv().encode("utf-8"),
 			file_name = "extracted_data.csv")
-		st.plotly_chart(fig_raw_data, use_container_width=True)
 		st.dataframe(extracted_data)
 
 
