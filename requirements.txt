@@ -15,3 +15,4 @@ XlsxWriter==3.0.3
 statsmodels==0.13.2
 colorutils==0.3.0
 simplification==0.6.2
+extcolors==1.0.0
