@@ -13,46 +13,14 @@ from matplotlib import pyplot as plt
 import math
 import requests
 from io import BytesIO
-st.set_option('deprecation.showPyplotGlobalUse', False)
 
-img_test_url = r"http://sci-space.co.uk//test_data/Particle%20analysis%20-%20Test%201.tif"
-img_test_response = requests.get(img_test_url)
-img_test = Image.open(BytesIO(img_test_response.content))
+from helpers import setup
+setup.setup_page("Particle Analysis")
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
 
-# ---- Page setup ----
-fav_url = r"http://sci-space.co.uk//favicon.ico"
-fav_response = requests.get(fav_url)
-fav = Image.open(BytesIO(fav_response.content))
-st.set_page_config(
-    page_title="Particle Analysis",
-    page_icon=fav,
-)
-
-st.title("Particle analysis")
-
-logo_url = r"http://sci-space.co.uk//scispace.png"
-logo_response = requests.get(logo_url)
-logo = Image.open(BytesIO(logo_response.content))
-
-st.sidebar.image(logo)
-
-page_setup = """
-	<div>
-		<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
-			<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
-		</a>
-	</div>
-	<hr/>
-	<style>
-		footer {visibility: hidden;}
-		[data-testid="stTickBar"] {height:0; visibility:hidden;}
-	</style>
-	"""
-st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
-
+img_test = Image.open("./assets/public_data/Particle Analysis - Test1.png")
 
 # ---- Functions ----
 def detect_particles(img, params):
@@ -128,6 +96,7 @@ def main():
 
 	if not img_file:
 		img_original = img_test
+		st.caption("The example shown here is of siciac coated nanoparticles. The analyzer distinguishes three distinct populations for core, shell, and contaminant silica particles.")
 	else:
 		img_original = Image.open(img_file)
 	img_original = img_original.convert("RGB")
@@ -148,14 +117,14 @@ def main():
 			'objects': [
 				{
 				'type': 'line', 'originX': 'left', 'originY': 'top',
-				'x1': img.width*0.67, 'y1': img.height*0.85,
-				'x2': img.width*0.75, 'y2': img.height*0.85,
+				'x1': img.width*0.68, 'y1': img.height*0.85,
+				'x2': img.width*0.84, 'y2': img.height*0.85,
 				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
 				},
 				{
 				'type': 'rect', 'originX': 'left', 'originY': 'top',
-				'left': img.width*0.25, 'top': img.height*0.25,
-				'width': img.width*0.5, 'height': img.height*0.5,
+				'left': img.width*0.1, 'top': img.height*0.1,
+				'width': img.width*0.75, 'height': img.height*0.65,
 				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
 				}
 			]
@@ -176,6 +145,7 @@ def main():
 		return None
 	try:
 		crop_rect = [d for d in canvas_result.json_data['objects'] if d['type']=='rect'][0]
+		print(crop_rect)
 	except:
 		# crop_rect = {
 		# 	'type': 'rect', 'originX': 'left', 'originY': 'top',
@@ -210,15 +180,20 @@ def main():
 	col_detected_particles, col_detection_settings = st.columns([3,1])
 
 	with col_detection_settings:
-		blur_val = st.slider("Blur", min_value=0, max_value=20, value=5)
-		dp_val = st.slider("DP", min_value=1.0, max_value=2.0, value=1.5,
+		blur_val = st.slider("Blur", min_value=0, max_value=20, value=4)
+
+		dp_val = st.slider("DP", min_value=1.0, max_value=2.0, value=1.2,
 			help="Inverse ratio of the accumulator resolution to the image resolution.")
-		param1_val = st.slider("Param 1", min_value=50, max_value=500, value=85,
+
+		param1_val = st.slider("Param 1", min_value=50, max_value=500, value=100,
 			help="The higher threshold of the two passed to the Canny edge detector")
-		param2_val = st.slider("Param 2", min_value=0.0, max_value=1.0, value=0.85,
+
+		param2_val = st.slider("Param 2", min_value=0.0, max_value=1.0, value=0.8,
 			help="The circle 'perfectness' measure")
-		min_dist_val = st.slider("Min distance (px)", min_value=1, max_value=100, value=10,
+
+		min_dist_val = st.slider("Min distance (px)", min_value=1, max_value=500, value=10,
 			help="Minimum distance between the centers of the detected circles.")
+
 		diameter_val = st.slider("Diameter (px)", min_value=1, max_value=500, value=(10,300),
 			help="Minimum and maximum circle diameter.")
 
@@ -272,7 +247,7 @@ def main():
 
 	# Add a column to contain dist plot settings
 	with col_dist_plot_settings:
-		max_components_val = st.number_input("Max components", value=2)
+		max_components_val = st.number_input("Max components", value=3)
 
 	counts, bin_edges = np.histogram(diameters_units, bins=int(np.sqrt(len(diameters_units))))
 	bin_widths = np.diff(bin_edges)
@@ -343,8 +318,6 @@ def main():
 	st.dataframe(df)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
-
-
 
 
 if __name__ == '__main__':

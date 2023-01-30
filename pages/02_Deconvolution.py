@@ -21,42 +21,18 @@ import requests
 from io import BytesIO
 import urllib.request
 
-data_test = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.xlsx"
-model_test_url = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.txt"
-model_test = urllib.request.urlopen(model_test_url)
+from helpers import setup
+setup.setup_page("Deconvolution")
+
+# data_test = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.xlsx"
+# model_test_url = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.txt"
+# model_test = urllib.request.urlopen(model_test_url)
+
+data_test = "./assets/public_data/Deconvolution - Data - Test1.xlsx"
+model_test = "./assets/public_data/Deconvolution - Model - Test1.txt"
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
-
-# ---- Page setup ----
-fav_url = r"http://sci-space.co.uk//favicon.ico"
-fav_response = requests.get(fav_url)
-fav = Image.open(BytesIO(fav_response.content))
-st.set_page_config(
-    page_title="Deconvolution",
-    page_icon=fav,
-)
-
-st.title("Deconvolution")
-
-logo_url = r"http://sci-space.co.uk//scispace.png"
-logo_response = requests.get(logo_url)
-logo = Image.open(BytesIO(logo_response.content))
-
-st.sidebar.image(logo)
-
-page_setup = """
-	<div>
-		<a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
-			<img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
-		</a>
-	</div>
-	<hr/>
-	<style>
-		footer {visibility: hidden;}
-	</style>
-	"""
-st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
 
 def main():
 
@@ -85,7 +61,7 @@ def main():
 
 	with col_dataselector:
 		ob_samples = GridOptionsBuilder.from_dataframe(samples)
-		ob_samples.configure_selection(selection_mode='multiple', use_checkbox=True)
+		ob_samples.configure_selection(selection_mode='multiple', use_checkbox=True, pre_selected_rows=[0])
 		ob_samples.configure_column('samples', suppressMenu=True, sortable=False)
 		ag_samples = AgGrid(samples,
 							ob_samples.build(),
@@ -111,11 +87,9 @@ def main():
 		label='Upload deconvolution model',
 		type=['txt'])
 	if not model_file:
-		deconvolution_setup = json.load(model_test)
-		# model_file = model_test
-	else:
-		with open(model_file, 'r') as f:
-			deconvolution_setup = json.load(f)
+		model_file = model_test
+	with open(model_file, 'r') as f:
+		deconvolution_setup = json.load(f)
 
 	# deconvolution_setup = [
 	# 	{
