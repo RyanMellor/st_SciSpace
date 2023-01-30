@@ -248,7 +248,6 @@ def main():
 		y = [float(i) for i in data_t[1]]
 		fig_raw_data.add_trace(go.Scatter(x=x, y=y, marker_color=col))
 		temp_df = pd.DataFrame(index=x, data=y, columns=[i])
-		temp_df
 		extracted_data = pd.concat([extracted_data, temp_df])
 
 	fig_raw_data.layout.template = 'plotly_dark'
