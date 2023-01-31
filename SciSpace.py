@@ -11,6 +11,8 @@ def main():
         ---
         Homepage of [SciSpace](http://sci-space.co.uk) Streamlit applications.
 
+        Many apps are still in the testing phase, expect bugs and please report them.
+
         ---
     ''')
 
