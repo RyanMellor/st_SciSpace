@@ -1,5 +1,5 @@
 import streamlit as st
-from PIL import Image
+# from st_pages import Page, Section, show_pages
 from helpers import setup
 
 PRIMARY_COLOR = "#4589ff"
@@ -17,6 +17,16 @@ def main():
     ''')
 
     st.image(setup.logo())
+
+    # show_pages(
+    #     [
+    #         Page("SciSpace.py.py", "Home"),
+    #         Section("Spectral"),
+    #         Page("apps/101_Deconvolution.py", "Deconvolution"),
+    #         Page("apps/102_Raman Signal Processor.py", "Raman Signal Processor"),
+    #         Page("apps/103_Quantitative Signal Analyser.py", "Quantitative Signal Analyser")
+    #     ]
+    # )
 
 if __name__ == '__main__':
     main()
