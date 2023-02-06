@@ -1,53 +1,27 @@
+# ---- Standard imports ----
 import streamlit as st
 from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, AgGridTheme
 from st_aggrid.grid_options_builder import GridOptionsBuilder
-
 import os
-import json
-import numpy as np
 import pandas as pd
-from PIL import Image
 from pprint import pprint
-import plotly.figure_factory as ff
 import plotly.graph_objects as go
-import plotly.express as px
-from lmfit import models
-from sklearn.metrics import r2_score
-from sklearn.mixture import GaussianMixture
 from scipy.signal import savgol_filter
-import requests
-from io import BytesIO, StringIO
-import urllib.request
-
 import numpy as np
 import pandas as pd
 from math import log10, floor
-
-from scipy import sparse
-from scipy.signal import savgol_filter, find_peaks
-from scipy.sparse.linalg import spsolve
-from scipy.stats import norm
-from scipy.interpolate import CubicSpline
-from scipy.optimize import curve_fit
+from scipy.signal import savgol_filter
 from scipy.integrate import trapz
-
-from sklearn.metrics import r2_score
-
 from collections import OrderedDict
 
-from lmfit import Parameters, Model
-from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
-
+# ---- Custom imports ----
 from helpers import setup
-setup.setup_page("Raman Signal Processor")
+setup.setup_page("Quantitative Signal Analyser")
 
 data_test = "./assets/public_data/Quantitative Signal Analyser - Data - Test1.xlsx"
 model_test = "./assets/public_data/Quantitative Signal Analyser - Model - Test1.xlsx"
 
 PRIMARY_COLOR = "#4589ff"
-
-def round_to_n(x, n):
-	return round(x, -int(floor(log10(abs(x)))) + (n - 1))
 
 plot_layout = {
 	"template": 'plotly_dark',
@@ -62,7 +36,8 @@ plot_layout = {
 	# "uirevision": "foo",
 	"height":300
 }
-
+def round_to_n(x, n):
+	return round(x, -int(floor(log10(abs(x)))) + (n - 1))
 
 @st.cache()
 def read_data(data_file, ext=None):
