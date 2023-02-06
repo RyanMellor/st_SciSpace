@@ -112,11 +112,11 @@ class Spectrum:
 	def do_voigt(self):
 		if len(self.peaks)!=0:
 
-			n=10
+			n = 10
 			i = 0
 			model = 0
 
-			for peak in self.peaks:
+			for i, peak in enumerate(self.peaks):
 				x = self.x_data[peak-n:peak+1+n]
 				y = self.flat[peak-n:peak+1+n]
 				peak_model = PseudoVoigtModel(prefix='p%d_' % (i+1))
@@ -127,7 +127,6 @@ class Spectrum:
 				else:
 					model = peak_model 
 					params = peak_params
-				i += 1
 
 			result = model.fit(self.flat, params, x=self.x_data)
 			self.flat_fit = result.eval(x=self.x_data)
@@ -135,9 +134,9 @@ class Spectrum:
 
 			x = self.x_data
 			xs = np.arange(x[0], x[-1], 0.1)
-			i = 0
+
 			comps = result.eval_components(x=xs)
-			for peak in self.peaks:
+			for i, peak in enumerate(self.peaks):
 				comp = comps['p%d_'% (i+1)]
 				x_start = self.x_data[peak-4*n]
 				x_end = self.x_data[peak+1+4*n]
@@ -153,8 +152,6 @@ class Spectrum:
 				self.peaks[peak]['peak_ys'] = peak_ys
 				self.peaks[peak]['peak_max_x'] = result.params['p%d_center'% (i+1)].value
 				self.peaks[peak]['peak_max_y'] = result.params['p%d_height'% (i+1)].value
-
-				i += 1
 
 	def do_simple_voigt(self):
 		n=3
@@ -212,6 +209,21 @@ def file_to_buffer(filepath):
     buffer.name = os.path.basename(filepath)
     return buffer
 
+@st.cache()
+def read_data(data_file, ext=None):
+    if isinstance(data_file, st.runtime.uploaded_file_manager.UploadedFile):
+        ext = os.path.splitext(data_file.name)[-1][1:]
+    else:
+        ext = os.path.splitext(data_file)[-1][1:]
+
+    # TODO add options for pd.read_XXX to sidebar
+    if ext in ['xls', 'xlsx']:
+        return pd.read_excel(data_file, index_col=0)
+    elif ext in ['csv', 'txt']:
+        return pd.read_csv(data_file, index_col=0)
+    else:
+        return None
+
 def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
@@ -229,15 +241,17 @@ def main():
 			type=['csv'],
 			accept_multiple_files=True)
 
+		st.caption("Currently expects file to have two columns with headers, one for x_data and one for y_data.")
+
 		if not data_files:
 			data_files = [data_test]
 
 		samples = []
 		all_spectra = OrderedDict()
 
-		header_contains = 'Dark Subtracted #1'
-		index_col = 'Raman Shift'
-		extract_col = 'Dark Subtracted #1'
+		# header_contains = 'Dark Subtracted #1'
+		# index_col = 'Raman Shift'
+		# extract_col = 'Dark Subtracted #1'
 
 		for file in data_files:
 			# if file.split('.')[-1].lower() == 'csv':
@@ -247,12 +261,13 @@ def main():
 				sample = '.'.join(file.split('.')[0:-1])
 			samples.append(sample)
 
-			header_row = 105#csv_header_rows(file, header_contains)[0]
-			all_cols = pd.read_csv(file, header=header_row, index_col=index_col)
+			# header_row = 105#csv_header_rows(file, header_contains)[0]
+			# all_cols = pd.read_csv(file, header=header_row, index_col=index_col)
+			all_cols = read_data(file)
 			all_cols = all_cols[all_cols.index > min_x]
 			all_cols = all_cols[all_cols.index < max_x]
 
-			all_spectra[sample] = Spectrum(x_data=all_cols.index, y_data=all_cols[extract_col])
+			all_spectra[sample] = Spectrum(x_data=all_cols.index, y_data=all_cols[all_cols.columns[0]])
 
 		current_idx = 0
 		current_sample = samples[current_idx]
@@ -297,7 +312,7 @@ def main():
 			baseline_lam = st.select_slider("Smoothness (λ)", baseline_lam_options)
 			baseline_p_options =   [round_to_n(i,2) for i in list(np.logspace(-5, 0, 100))]
 			baseline_p = st.select_slider("Asymmetry (p)", baseline_p_options)
-			baseline_niter = st.slider("Iterations", min_value=1, max_value=50, value=10, step=1)
+			baseline_niter = st.slider("Iterations", min_value=1, max_value=50, value=15, step=1)
 			current_spectrum.do_flat(baseline_lam, baseline_p, baseline_niter)
 		with col_baseline_plot:
 			fig_processed_data = go.Figure(layout=plot_layout)
@@ -315,7 +330,7 @@ def main():
 			peaks_prominence = st.slider('Prominence', min_value=0, max_value=100, value=1, step=1)
 			peaks_width = st.slider('Width', min_value=0, max_value=100, value=0, step=1)
 			current_spectrum.do_peaks(peaks_height, peaks_threshold, peaks_distance, peaks_prominence, peaks_width)
-			decon = st.checkbox("Deconvolution", False)
+			decon = st.button("Deconvolution",)
 			if decon:
 				current_spectrum.do_voigt()
 			else:
@@ -333,7 +348,6 @@ def main():
 				fig_processed_data.add_trace(go.Scatter(x=peak['peak_xs'], y=peak['peak_ys'], name='Peaks', line_color="firebrick", showlegend=showlegend, fill='tozeroy'))
 			# fig_processed_data.add_trace(go.Scatter(x=peak_xs, y=peak_ys, name="Peaks", line_color="firebrick", mode="markers"))
 			st.plotly_chart(fig_processed_data, use_container_width=True)
-
 
 if __name__ == '__main__':
 	main()

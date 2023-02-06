@@ -17,6 +17,9 @@ os.environ["OMP_NUM_THREADS"] = '1'
 from helpers import setup
 setup.setup_page("Particle Analysis")
 
+import warnings
+warnings.filterwarnings('ignore')
+
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
 
@@ -29,6 +32,39 @@ img_test = "./assets/public_data/Particle Analysis - Test1.png"
 # add_to_session_state()
 
 # ---- Functions ----
+
+def img_segragation(img):
+	gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+	ret, thresh = cv2.threshold(gray,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+
+	# noise removal
+	kernel = np.ones((3,3),np.uint8)
+	opening = cv2.morphologyEx(thresh,cv2.MORPH_OPEN,kernel, iterations = 2)
+
+	# sure background area
+	sure_bg = cv2.dilate(opening,kernel,iterations=3)
+
+	# Finding sure foreground area
+	dist_transform = cv2.distanceTransform(opening,cv2.DIST_L2,5)
+	ret, sure_fg = cv2.threshold(dist_transform,0.7*dist_transform.max(),255,0)
+
+	# Finding unknown region
+	sure_fg = np.uint8(sure_fg)
+	unknown = cv2.subtract(sure_bg,sure_fg)
+
+	# Marker labelling
+	ret, markers = cv2.connectedComponents(sure_fg)
+
+	# Add one to all labels so that sure background is not 0, but 1
+	markers = markers+1
+
+	# Now, mark the region of unknown with zero
+	markers[unknown==255] = 0
+
+	markers = cv2.watershed(img,markers)
+	img[markers == -1] = [255,0,0]
+
+st.cache(show_spinner=False)
 def detect_particles(img, params):
 	diameters = []
 
@@ -36,10 +72,12 @@ def detect_particles(img, params):
 		img = ImageOps.invert(img)
 	# img = img.convert("L")
 	img = np.array(img)
-	img_output = img.copy()
 	img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 	b = 1 + params["blur_val"]*2 
 	img = cv2.GaussianBlur(img, (b,b), 0)
+
+	img_output = img.copy()
+	img_output = cv2.cvtColor(img_output, cv2.COLOR_GRAY2RGB)
 
 	circles = cv2.HoughCircles(
 		image=img,
@@ -60,18 +98,20 @@ def detect_particles(img, params):
 
 	return img_output, circles, diameters
 
+@st.cache(show_spinner=False)
 def resize_img(img: Image, max_height: int=500, max_width: int=500):
-    # Resize the image to be a max of 600x600 by default, or whatever the user 
-    # provides. If streamlit has an attribute to expose the default width of a widget,
-    # we should use that instead.
-    if img.height > max_height:
-        ratio = max_height / img.height
-        img = img.resize((int(img.width * ratio), int(img.height * ratio)))
-    if img.width > max_width:
-        ratio = max_width / img.width
-        img = img.resize((int(img.width * ratio), int(img.height * ratio)))
-    return img, ratio
+	# Resize the image to be a max of 500x500 by default
+	ratio = 1
+	if img.height > max_height:
+		ratio = max_height / img.height
+		img = img.resize((int(img.width * ratio), int(img.height * ratio)))
+	if img.width > max_width:
+		ratio = max_width / img.width
+		img = img.resize((int(img.width * ratio), int(img.height * ratio)))
+	
+	return img, ratio
 
+st.cache(show_spinner=False)
 def plot_mixture(gmm, X, show_legend=True, ax=None):
 	if ax is None:
 		ax = plt.gca()
@@ -99,25 +139,32 @@ def plot_mixture(gmm, X, show_legend=True, ax=None):
 		if show_legend:
 			ax.legend()
 
+@st.cache(show_spinner=False)
+def open_img(path):
+	return Image.open(path)
+
 def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
-	st.markdown("### Setup")
+	# container_left, container_center, container_right = st.columns([1,3,1])
+	# with container_center:
 
+	st.markdown("### Setup")
+	
 	with st.expander("Upload image, add ROI, and define scale", expanded=True):
-		img_file = st.file_uploader(label='', type=FILETYPES_IMG)
+		img_file = st.file_uploader(label='Upload image file', type=FILETYPES_IMG, label_visibility='collapsed')
 
 		if not img_file:
 			img_file = img_test
 			st.caption("The example shown here is of silica coated gold nanoparticles. The analyzer distinguishes three distinct populations for core, shell, and contaminant silica particles.")
-		img_original = Image.open(img_file)
+		img_original = open_img(img_file)
 		img_original = img_original.convert("RGB")
 		img = img_original.copy()
 		img, scalefactor = resize_img(img_original)
 
 		col_original_img, col_img_settings = st.columns([3,1])
-
+		
 		# Add a column to contain image settings
 		with col_img_settings:
 			scale_val = st.number_input("Scalebar length", value=500)
@@ -165,7 +212,7 @@ def main():
 				stroke_width = 4
 			)
 			st.caption("Doubleclicking objects will remove them.")
-
+		
 		try:
 			crop_rect = [d for d in canvas_result.json_data['objects'] if d['type']=='rect'][0]	
 		except:
@@ -181,7 +228,7 @@ def main():
 			int((crop_right / img.width) * img_original.width),
 			int((crop_bottom / img.height) * img_original.height)
 			))
-
+		
 		try:
 			scalebar_line = [d for d in canvas_result.json_data['objects'] if d['type']=='line'][0]
 		except:
@@ -193,7 +240,7 @@ def main():
 	st.markdown("<hr/>", unsafe_allow_html=True)
 	
 	st.markdown("### Detection")
-
+	
 	with st.expander("Detection settings", expanded=True):
 		col_detected_particles, col_detection_settings = st.columns([3,1])
 
@@ -240,8 +287,6 @@ def main():
 				value=float(scale_val),
 				help="Maximum circle diameter.")
 
-		
-
 		detection_settings = {
 			"blur_val": blur_val,
 			"invert_val": invert_val,
@@ -253,7 +298,7 @@ def main():
 			"min_dist_val": min_dist_val / (scalefactor * scale_val/scalebar_px),
 			"diameter_val": [i / (scalefactor * scale_val/scalebar_px) for i in [min_diameter_val, max_diameter_val]],
 		}
-
+		
 		with col_detected_particles:
 			img_output, circles, diameters_px = detect_particles(img_crop, detection_settings)
 			st.image(img_output)
