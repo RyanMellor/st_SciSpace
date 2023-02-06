@@ -36,3 +36,5 @@ def setup_page(page_title):
         </style>
     """
     st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
+
+    # [data-testid="stSidebarNav"] .ul {max-heigh:fit-content}
