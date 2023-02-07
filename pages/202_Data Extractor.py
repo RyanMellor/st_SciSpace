@@ -11,8 +11,8 @@ from colorutils import rgb_to_hsv, rgb_to_hex
 from simplification.cutil import simplify_coords
 import extcolors
 
-from helpers import setup
-setup.setup_page("Data Extractor")
+from helpers import sci_setup, sci_data
+sci_setup.setup_page("Data Extractor")
 
 img_test = "./assets/public_data/Data Extractor - Test1.png"
 
@@ -20,7 +20,6 @@ FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
 
 # ---- Functions ----
-
 
 def map_data(data, inmin, inmax, outmin, outmax):
 	return outmin + (outmax - outmin)*(data - inmin) / (inmax - inmin)
@@ -46,9 +45,7 @@ def lerp_gaps(data):
 
 
 def resize_img(img: Image, max_height: int = 600, max_width: int = 600):
-	# Resize the image to be a max of 600x600 by default, or whatever the user
-	# provides. If streamlit has an attribute to expose the default width of a widget,
-	# we should use that instead.
+	# Resize the image to be a max of 600x600 by default.
 	ratio = 1
 	if img.height > max_height:
 		ratio = max_height / img.height

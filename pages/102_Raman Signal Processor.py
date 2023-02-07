@@ -37,8 +37,8 @@ from collections import OrderedDict
 from lmfit import Parameters, Model
 from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
 
-from helpers import setup
-setup.setup_page("Raman Signal Processor")
+from helpers import sci_setup, sci_data
+sci_setup.setup_page("Raman Signal Processor")
 
 data_test = "./assets/public_data/Raman Signal Processor - Test1.csv"
 model_test = "./assets/public_data/Deconvolution - Model - Test1.txt"
@@ -209,21 +209,6 @@ def file_to_buffer(filepath):
     buffer.name = os.path.basename(filepath)
     return buffer
 
-@st.cache()
-def read_data(data_file, ext=None):
-    if isinstance(data_file, st.runtime.uploaded_file_manager.UploadedFile):
-        ext = os.path.splitext(data_file.name)[-1][1:]
-    else:
-        ext = os.path.splitext(data_file)[-1][1:]
-
-    # TODO add options for pd.read_XXX to sidebar
-    if ext in ['xls', 'xlsx']:
-        return pd.read_excel(data_file, index_col=0)
-    elif ext in ['csv', 'txt']:
-        return pd.read_csv(data_file, index_col=0)
-    else:
-        return None
-
 def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
@@ -263,7 +248,7 @@ def main():
 
 			# header_row = 105#csv_header_rows(file, header_contains)[0]
 			# all_cols = pd.read_csv(file, header=header_row, index_col=index_col)
-			all_cols = read_data(file)
+			all_cols = sci_data.file_to_df(file, index_col=0)
 			all_cols = all_cols[all_cols.index > min_x]
 			all_cols = all_cols[all_cols.index < max_x]
 

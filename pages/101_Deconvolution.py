@@ -21,8 +21,8 @@ import requests
 from io import BytesIO
 import urllib.request
 
-from helpers import setup
-setup.setup_page("Deconvolution")
+from helpers import sci_setup, sci_data
+sci_setup.setup_page("Deconvolution")
 
 # data_test = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.xlsx"
 # model_test_url = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.txt"
@@ -50,15 +50,7 @@ def main():
 		if not data_file:
 			data_file = data_test
 
-		ext = os.path.splitext(data_file)[-1][1:]
-
-		# TODO add options for pd.read_XXX to sidebar
-		if ext in ['xls', 'xlsx']:
-			df_data = pd.read_excel(data_file, index_col=0)
-		elif ext in ['csv', 'txt']:
-			df_data = pd.read_csv(data_file, index_col=0)
-		else:
-			return None
+		df_data = sci_data.file_to_df(data_file, index_col=0)
 
 		samples = pd.DataFrame(columns=['samples'], data=df_data.columns)
 		col_dataselector, col_plotraw = st.columns([1, 3])
@@ -72,11 +64,11 @@ def main():
 								height=600,
 								update_mode=GridUpdateMode.SELECTION_CHANGED,
 								theme=AgGridTheme.ALPINE)
-			selected_samples = [i['_selectedRowNodeInfo']['nodeRowIndex'] for i in ag_samples.selected_rows]
+			selected_samples = [i['samples'] for i in ag_samples.selected_rows]
 
 		with col_plotraw:
 			# TODO add options for labels to sidebar
-			fig_raw_data = px.line(df_data[df_data.columns[selected_samples]])
+			fig_raw_data = px.line(df_data[selected_samples])
 			fig_raw_data.layout.template = 'plotly_dark'
 			fig_raw_data.layout.legend.traceorder = 'normal'
 			fig_raw_data.layout.margin = dict(l=20, r=20, t=20, b=20)
@@ -127,37 +119,37 @@ def main():
 				df_deconvolution_setup = pd.concat([df_deconvolution_setup, df])
 		df_deconvolution_setup.reset_index(drop=True, inplace=True)
 
-		col_feature_setup, col_feature_parameters = st.columns([1,2])
-		with col_feature_setup:
-			st.markdown("### Feature setup")
-			df_features = df_deconvolution_setup[['feature', 'model', 'color']].drop_duplicates()
-			ob_features = GridOptionsBuilder.from_dataframe(df_features)
-			ob_features.configure_column('feature', suppressMenu=True, sortable=False, editable=True)
-			ob_features.configure_column('model', suppressMenu=True, sortable=False, editable=True)
-			ob_features.configure_column('color', suppressMenu=True, sortable=False, editable=True)
-			ag_features = AgGrid(
-				df_features,
-				ob_features.build(),
-				columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-				theme=AgGridTheme.ALPINE,
-			)
-		with col_feature_parameters:
-			st.markdown("### Feature parameters")
-			ob_parameters = GridOptionsBuilder.from_dataframe(df_deconvolution_setup)
-			ob_parameters.configure_column('feature', suppressMenu=True, sortable=False)
-			ob_parameters.configure_column('model', hide=True)
-			ob_parameters.configure_column('color', hide=True)
-			ob_parameters.configure_column('parameter', suppressMenu=True, sortable=False)
-			ob_parameters.configure_column('value', suppressMenu=True, sortable=False, editable=True, type=["numericColumn","numberColumnFilter"])
-			ob_parameters.configure_column('min', suppressMenu=True, sortable=False, editable=True, type=["numericColumn","numberColumnFilter"])
-			ob_parameters.configure_column('max', suppressMenu=True, sortable=False, editable=True, type=["numericColumn","numberColumnFilter"])
-			ob_parameters.configure_column('vary', suppressMenu=True, sortable=False, editable=True)
-			ag_parameters = AgGrid(
-				df_deconvolution_setup,
-				ob_parameters.build(),
-				columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-				theme=AgGridTheme.ALPINE,
-			)
+		# col_feature_setup, col_feature_parameters = st.columns([1,2])
+		# with col_feature_setup:
+		st.markdown("### Feature setup")
+		df_features = df_deconvolution_setup[['feature', 'model', 'color']].drop_duplicates()
+		ob_features = GridOptionsBuilder.from_dataframe(df_features)
+		ob_features.configure_column('feature', suppressMenu=True, sortable=False, editable=False)
+		ob_features.configure_column('model', suppressMenu=True, sortable=False, editable=False)
+		ob_features.configure_column('color', suppressMenu=True, sortable=False, editable=False)
+		ag_features = AgGrid(
+			df_features,
+			ob_features.build(),
+			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+			theme=AgGridTheme.ALPINE,
+		)
+		# with col_feature_parameters:
+		st.markdown("### Feature parameters")
+		ob_parameters = GridOptionsBuilder.from_dataframe(df_deconvolution_setup)
+		ob_parameters.configure_column('feature', hide=True, suppressMenu=True, sortable=False)
+		ob_parameters.configure_column('model', hide=True)
+		ob_parameters.configure_column('color', hide=True)
+		ob_parameters.configure_column('parameter', suppressMenu=True, sortable=False)
+		ob_parameters.configure_column('value', suppressMenu=True, sortable=False, editable=False)
+		ob_parameters.configure_column('min', suppressMenu=True, sortable=False, editable=False)
+		ob_parameters.configure_column('max', suppressMenu=True, sortable=False, editable=False)
+		ob_parameters.configure_column('vary', suppressMenu=True, sortable=False, editable=False)
+		ag_parameters = AgGrid(
+			df_deconvolution_setup,
+			ob_parameters.build(),
+			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+			theme=AgGridTheme.ALPINE,
+		)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
@@ -200,7 +192,7 @@ def main():
 			df_data = df_data[df_data.index <= data_range[1]]
 			x_data = np.array(df_data.index)
 			try:
-				y_data = np.array(df_data[df_data.columns[selected_samples[0]]])
+				y_data = np.array(df_data[selected_samples[0]])
 			except:
 				return None
 

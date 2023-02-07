@@ -25,8 +25,8 @@ import urllib.request
 import math
 import copy
 
-from helpers import setup
-setup.setup_page("HPLC Method Validation")
+from helpers import sci_setup, sci_data
+sci_setup.setup_page("HPLC Method Validation")
 
 data_test = './assets/public_data/HPLC Method Validation - Test1.xlsx'
 
@@ -40,23 +40,6 @@ with open(template_path, 'rb') as f:
         data=f,
         file_name='SciSpace - HPLC Validation Template.xlsx'
     )
-
-
-@st.cache()
-def read_data(data_file, ext=None):
-    if isinstance(data_file, st.runtime.uploaded_file_manager.UploadedFile):
-        ext = os.path.splitext(data_file.name)[-1][1:]
-    else:
-        ext = os.path.splitext(data_file)[-1][1:]
-
-    # TODO add options for pd.read_XXX to sidebar
-    if ext in ['xls', 'xlsx']:
-        return pd.read_excel(data_file, index_col=0)
-    elif ext in ['csv', 'txt']:
-        return pd.read_csv(data_file, index_col=0)
-    else:
-        return None
-
 
 def lerp_idx(series, idx):
     # frac, whole = math.modf(idx)
@@ -251,8 +234,9 @@ def main():
         if not data_file:
             data_file = data_test
 
-        df_data_read = read_data(data_file)
+        df_data_read = sci_data.file_to_df(data_file, index_col=0)
         if df_data_read is None:
+            st.warning("Failed to load file")
             return None
 
         sample_names = [i for i in df_data_read.columns if i != "Baseline"]

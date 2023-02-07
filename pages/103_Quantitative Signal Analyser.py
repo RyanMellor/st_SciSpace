@@ -15,8 +15,8 @@ from scipy.integrate import trapz
 from collections import OrderedDict
 
 # ---- Custom imports ----
-from helpers import setup
-setup.setup_page("Quantitative Signal Analyser")
+from helpers import sci_setup, sci_data
+sci_setup.setup_page("Quantitative Signal Analyser")
 
 data_test = "./assets/public_data/Quantitative Signal Analyser - Data - Test1.xlsx"
 model_test = "./assets/public_data/Quantitative Signal Analyser - Model - Test1.xlsx"
@@ -39,20 +39,6 @@ plot_layout = {
 }
 def round_to_n(x, n):
 	return round(x, -int(floor(log10(abs(x)))) + (n - 1))
-
-@st.cache()
-def read_data(data_file, ext=None):
-	if isinstance(data_file, st.runtime.uploaded_file_manager.UploadedFile):
-		ext = os.path.splitext(data_file.name)[-1][1:]
-	else:
-		ext = os.path.splitext(data_file)[-1][1:]
-
-	if ext in ['xls', 'xlsx']:
-		return pd.read_excel(data_file)
-	elif ext in ['csv', 'txt']:
-		return pd.read_csv(data_file)
-	else:
-		return None
 
 def main():
 
@@ -100,7 +86,7 @@ def main():
 				sample = '.'.join(file.split('.')[0:-1])
 			samples.append(sample)
 
-			data_df = read_data(file)
+			data_df = sci_data.file_to_df(file)
 			data_df.columns = ['x_data', 'y_data']
 			data_df = data_df[data_df['x_data'] > x_min]
 			data_df = data_df[data_df['x_data'] <= x_max]
@@ -130,7 +116,7 @@ def main():
 		if not model_file:
 			model_file = model_test
 
-		feature_df = read_data(model_file)
+		feature_df = sci_data.file_to_df(model_file)
 
 		df_features = feature_df
 		ob_features = GridOptionsBuilder.from_dataframe(df_features)
@@ -154,13 +140,17 @@ def main():
 		try:
 			norm_feature = ag_features.selected_rows[0]['feature']
 		except:
-			st.write("Please select a feature to normalize against")
+			st.warning("Please select a feature to normalize against")
 			return None
-		col1, col2 = st.columns(2)
-		with col1:
-			filter_window = st.number_input("Savgol filter window", 0, 101, 11, 1)
-		with col2:
-			filter_order = st.number_input("Savgol filter order", 2, 11, 3, 1)
+
+		st.markdown("<hr/>", unsafe_allow_html=True)
+
+		col_sg_window, col_sg_order = st.columns(2)
+		with col_sg_window:
+			sg_window = st.number_input("Savgol filter window", 3, 100, 20, 1)
+		with col_sg_order:
+			sg_order = st.number_input("Savgol filter order", 2, 10, 3, 1)
+		st.caption("Savgol parameters are used for smoothin of the derivative, they do not affect integration.")
 		tabs = st.tabs([f['feature'] for f in features])
 		for i, tab in enumerate(tabs):
 			f = features[i]
@@ -183,7 +173,11 @@ def main():
 				
 				st.markdown("### First derivative")
 				
-				feature_data['deriv'] = savgol_filter(feature_data['y_data'], filter_window, filter_order, 1)
+				try:
+					feature_data['deriv'] = savgol_filter(feature_data['y_data'], sg_window, sg_order, 1)
+				except:
+					st.warning("Savgol filter order must be less than Savgol filter window.")
+					return None
 				fig_deriv = go.Figure(layout=plot_layout)
 				fig_deriv.add_trace(go.Scatter(x=feature_data['x_data'], y=feature_data['deriv'], name="Deriv"))
 				fig_deriv.add_vrect(**highlight)
@@ -201,8 +195,6 @@ def main():
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
 	st.markdown("### Output")
-
-
 
 	with st.expander("Integrations", expanded=True):
 		fig_output = go.Figure(layout=plot_layout)

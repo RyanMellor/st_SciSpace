@@ -14,8 +14,8 @@ import math
 import os
 os.environ["OMP_NUM_THREADS"] = '1'
 
-from helpers import setup
-setup.setup_page("Particle Analysis")
+from helpers import sci_setup, sci_data
+sci_setup.setup_page("Particle Analysis")
 
 import warnings
 warnings.filterwarnings('ignore')

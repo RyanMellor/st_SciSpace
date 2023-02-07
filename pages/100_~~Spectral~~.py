@@ -1,2 +1,2 @@
-from helpers import setup
-setup.setup_page("HPLC Method Validation")
+from helpers import sci_setup
+sci_setup.setup_page("Spectral")
