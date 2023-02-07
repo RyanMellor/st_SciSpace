@@ -1,10 +1,9 @@
 import streamlit as st
 # from st_pages import Page, Section, show_pages
-from helpers import setup
+from helpers import sci_setup
+sci_setup.setup_page("SciSpace")
 
 PRIMARY_COLOR = "#4589ff"
-
-setup.setup_page("SciSpace")
 
 def main():
     st.markdown('''
