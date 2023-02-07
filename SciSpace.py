@@ -15,7 +15,7 @@ def main():
         ---
     ''')
 
-    st.image(setup.logo())
+    st.image(sci_setup.logo())
 
     # show_pages(
     #     [
