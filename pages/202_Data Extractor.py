@@ -191,7 +191,6 @@ def main():
 		lower = np.array([i if i>0 else 0 for i in lower])
 		upper = np.array(line_rgb + rgb_tol)
 		upper = np.array([i if i<255 else 255 for i in upper])
-		print(lower,upper)
 		mask = cv2.inRange(cvimg, lower, upper)
 
 		series[line]['mask'] = mask

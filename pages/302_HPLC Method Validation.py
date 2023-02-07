@@ -41,6 +41,21 @@ with open(template_path, 'rb') as f:
         file_name='SciSpace - HPLC Validation Template.xlsx'
     )
 
+plot_layout = {
+	"template": 'plotly_dark',
+	# "legend": {
+	# 	'traceorder':'normal',
+	# 	'yanchor': "top",
+	# 	'y': 0.99,
+	# 	'xanchor': "left",
+	# 	'x': 0.01},
+	"margin": dict(l=20, r=20, t=20, b=20),
+	"xaxis": {},
+	"yaxis": {},
+	"uirevision": "foo",
+	"height":400
+}
+
 def lerp_idx(series, idx):
     # frac, whole = math.modf(idx)
     idx_lower = math.floor(idx)
@@ -146,85 +161,86 @@ def main():
     with st.expander("Define analytes, system parameters, and upload raw data", expanded=True):
         st.markdown("<hr/>", unsafe_allow_html=True)
 
-        col_analytes, col_system = st.columns([3, 2])
+        # col_analytes, col_system = st.columns([3, 2])
 
-        with col_analytes:
-            st.markdown("### Analytes")
-            analytes = [
-                {
-                    'analyte': 'Analyte1',
-                    'from': 4,
-                    'to': 4.4,
-                    'target': 200,
-                },
-                {
-                    'analyte': 'Analyte2',
-                    'from': 5.1,
-                    'to': 5.4,
-                    'target': 200,
-                },
-                {'analyte': ''},
-                {'analyte': ''},
-                {'analyte': ''},
-                {'analyte': ''},
-                {'analyte': ''},
-                {'analyte': ''},
-                {'analyte': ''}
-            ]
-            df_analytes = pd.DataFrame(analytes)
-            ob_analytes = GridOptionsBuilder.from_dataframe(df_analytes)
-            ob_analytes.configure_column(
-                'analyte', suppressMenu=True, sortable=False, editable=True)
-            ob_analytes.configure_column(
-                'from', suppressMenu=True, sortable=False, editable=True)
-            ob_analytes.configure_column(
-                'to', suppressMenu=True, sortable=False, editable=True)
-            ob_analytes.configure_column(
-                'target', suppressMenu=True, sortable=False, editable=True)
-            ag_analytes = AgGrid(
-                df_analytes,
-                ob_analytes.build(),
-                columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-                theme=AgGridTheme.ALPINE,
-            )
-            ag_analytes.data.sort_values('from', inplace=True)
-            analytes = ag_analytes.data.to_dict('records')
+        # with col_system:
+        st.markdown("### System")
 
-        with col_system:
-            st.markdown("### System")
+        system = [
+            {
+                'parameter': 't0',
+                'value': 0.65,
+                'units': 'min'
+            },
+            # {
+            # 	'parameter': 'flow',
+            # 	'value': 1,
+            # 	'units': 'mL/min'
+            # },
+        ]
 
-            system = [
-                {
-                    'parameter': 't0',
-                    'value': 0.65,
-                    'units': 'min'
-                },
-                # {
-                # 	'parameter': 'flow',
-                # 	'value': 1,
-                # 	'units': 'mL/min'
-                # },
-            ]
+        df_system = pd.DataFrame(system)
+        ob_system = GridOptionsBuilder.from_dataframe(df_system)
+        ob_system.configure_column(
+            'parameter', suppressMenu=True, sortable=False)
+        ob_system.configure_column(
+            'value', suppressMenu=True, sortable=False, editable=True)
+        ag_system = AgGrid(
+            df_system,
+            ob_system.build(),
+            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+            theme=AgGridTheme.ALPINE,
+            height = 100
+        )
+        system_temp = ag_system.data.to_dict('records')
+        system = {}
+        for i in system_temp:
+            p = i['parameter']
+            v = i['value']
+            u = i['units']
+            system[p] = {'value': v, 'units': u}
 
-            df_system = pd.DataFrame(system)
-            ob_system = GridOptionsBuilder.from_dataframe(df_system)
-            ob_system.configure_column(
-                'parameter', suppressMenu=True, sortable=False)
-            ob_system.configure_column(
-                'value', suppressMenu=True, sortable=False, editable=True)
-            ag_system = AgGrid(
-                df_system,
-                ob_system.build(),
-                columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-                theme=AgGridTheme.ALPINE,
-            )
-            system_temp = ag_system.data.to_dict('records')
-            system = {}
-            for i in system_temp:
-                p = i['parameter']
-                v = i['value']
-                u = i['units']
-                system[p] = {'value': v, 'units': u}
+        # with col_analytes:
+        st.markdown("### Analytes")
+        analytes = [
+            {
+                'analyte': 'Analyte1',
+                'from': 4,
+                'to': 4.4,
+                'target': 200,
+            },
+            {
+                'analyte': 'Analyte2',
+                'from': 5.1,
+                'to': 5.4,
+                'target': 200,
+            },
+            {'analyte': ''},
+            {'analyte': ''},
+            {'analyte': ''},
+            {'analyte': ''},
+            {'analyte': ''},
+            {'analyte': ''},
+            {'analyte': ''}
+        ]
+        df_analytes = pd.DataFrame(analytes)
+        ob_analytes = GridOptionsBuilder.from_dataframe(df_analytes)
+        ob_analytes.configure_column(
+            'analyte', suppressMenu=True, sortable=False, editable=True)
+        ob_analytes.configure_column(
+            'from', suppressMenu=True, sortable=False, editable=True)
+        ob_analytes.configure_column(
+            'to', suppressMenu=True, sortable=False, editable=True)
+        ob_analytes.configure_column(
+            'target', suppressMenu=True, sortable=False, editable=True)
+        ag_analytes = AgGrid(
+            df_analytes,
+            ob_analytes.build(),
+            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+            theme=AgGridTheme.ALPINE,
+        )
+        ag_analytes.data.sort_values('from', inplace=True)
+        analytes = ag_analytes.data.to_dict('records')
 
         st.markdown("<hr/>", unsafe_allow_html=True)
 
@@ -269,13 +285,21 @@ def main():
         with col_plotraw:
             # TODO add options for labels to sidebar
             fig_raw_data = px.line(
-                df_data[df_data.columns[selected_samples]], color_discrete_sequence=px.colors.sequential.Blues)
-            # xElem = fig_raw_data['layout']['shapes']
-            # shp_lst=[]
+                df_data[df_data.columns[selected_samples]],
+                # color_discrete_sequence=px.colors.qualitative.T10
+                color_discrete_sequence =["#f17f29","#dba277","#828282","#bfbfbf","#7ea0c4","#377bc4"]
+                )
+            fig_raw_data.layout = plot_layout
+            fig_raw_data.layout.xaxis.title.text = 'Time (min)'
+            fig_raw_data.layout.yaxis.title.text = 'Response'
+            fig_raw_data.layout.legend.title.text = 'Sample'
+
             for i, a in enumerate(analytes):
                 analyte = a['analyte']
                 if analyte == "":
                     continue
+                
+                # fig_raw_data.add_selection(x0=a['from'], y0=0, x1=a['to'], y1=1000)
                 fig_raw_data.add_vrect(
                     x0=a['from'],
                     x1=a['to'],
@@ -283,12 +307,6 @@ def main():
                     opacity=0.1,
                     line_width=0,
                 )
-            fig_raw_data.layout.template = 'plotly_dark'
-            fig_raw_data.layout.legend.traceorder = 'normal'
-            fig_raw_data.layout.margin = dict(l=20, r=20, t=20, b=20)
-            fig_raw_data.layout.xaxis.title.text = 'Time (min)'
-            fig_raw_data.layout.yaxis.title.text = 'Response'
-            fig_raw_data.layout.legend.title.text = 'Sample'
             st.plotly_chart(fig_raw_data, use_container_width=True)
 
         study_abv = {
@@ -351,7 +369,6 @@ def main():
                 df_lin = df_calcs[df_calcs['study'] == 'Linearity']
                 df_lin_desc = df_lin.groupby(f'Nominal_{analyte}')[
                     f'AUC_{analyte}'].describe()
-
                 fig_lin = px.scatter(
                     x=df_lin_desc.index,
                     y=df_lin_desc['mean'],
@@ -359,9 +376,7 @@ def main():
                     trendline="ols",
                     trendline_options=dict(log_x=log_x, log_y=log_y)
                 )
-                fig_lin.layout.template = 'plotly_dark'
-                fig_lin.layout.legend.traceorder = 'normal'
-                fig_lin.layout.margin = dict(l=10, r=10, t=30, b=30)
+                fig_lin.layout = plot_layout
                 fig_lin.layout.title = 'Linearity'
                 fig_lin.layout.xaxis.title.text = 'Concentration'
                 fig_lin.layout.yaxis.title.text = 'AUC'
@@ -400,9 +415,7 @@ def main():
                     y=df_acc_desc['mean'],
                     error_y=df_acc_desc['std']
                 )
-                fig_acc.layout.template = 'plotly_dark'
-                fig_acc.layout.legend.traceorder = 'normal'
-                fig_acc.layout.margin = dict(l=10, r=10, t=30, b=30)
+                fig_acc.layout = plot_layout
                 fig_acc.layout.title = 'Accuracy'
                 fig_acc.layout.xaxis.title.text = 'Level (%of target)'
                 fig_acc.layout.yaxis.title.text = 'Recovery (%)'
@@ -418,9 +431,7 @@ def main():
                     y=df_rep_desc['mean'],
                     error_y=df_rep_desc['std']
                 )
-                fig_rep.layout.template = 'plotly_dark'
-                fig_rep.layout.legend.traceorder = 'normal'
-                fig_rep.layout.margin = dict(l=10, r=10, t=30, b=30)
+                fig_rep.layout = plot_layout
                 fig_rep.layout.title = 'Repeatability'
                 fig_rep.layout.xaxis.title.text = 'Level (%of target)'
                 fig_rep.layout.yaxis.title.text = 'Recovery (%)'
@@ -468,6 +479,10 @@ def main():
             # right_ip_y = df_peak['Lin_100_01'][right_ip_x]
 
             fig_peak = px.area(df_peak['Lin_100_01'])
+            fig_peak.layout = plot_layout
+            fig_peak.layout.xaxis.title.text = 'Time (min)'
+            fig_peak.layout.yaxis.title.text = 'Response'
+            fig_peak.layout.legend.title.text = 'Sample'
             # fig_peak.add_trace(go.Scatter(x=[left_ip_x], y=[left_ip_y]))
             # fig_peak.add_trace(go.Scatter(x=[right_ip_x], y=[right_ip_y]))
             fig_peak.add_shape(
@@ -481,12 +496,6 @@ def main():
                     x0=width['from'], y0=width['height'], x1=width['to'], y1=width['height'],
                     line=dict(color='Grey',)
                 )
-            fig_peak.layout.template = 'plotly_dark'
-            fig_peak.layout.legend.traceorder = 'normal'
-            fig_peak.layout.margin = dict(l=20, r=20, t=20, b=20)
-            fig_peak.layout.xaxis.title.text = 'Time (min)'
-            fig_peak.layout.yaxis.title.text = 'Response'
-            fig_peak.layout.legend.title.text = 'Sample'
             st.plotly_chart(fig_peak, use_container_width=True)
 
             t0 = system['t0']['value']
