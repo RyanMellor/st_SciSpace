@@ -12,10 +12,10 @@ def main():
 
         Many apps are still in the testing phase, expect bugs and please report them.
 
-        [![SciSpace](app/static/scispace.png)](http://sci-space.co.uk)
-
         ---
     ''')
+
+    st.image(sci_setup.logo())
 
     # show_pages(
     #     [

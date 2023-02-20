@@ -2,10 +2,10 @@ import streamlit as st
 from PIL import Image
 
 def logo():
-    return Image.open('./static/scispace.png')
+    return Image.open('./scispace.png')
 
 def fav():
-    return Image.open('./static/favicon.ico')
+    return Image.open('./favicon.ico')
 
 def setup_page(page_title):
 
@@ -19,8 +19,9 @@ def setup_page(page_title):
 
     st.set_option('deprecation.showPyplotGlobalUse', False)
 
+    st.sidebar.image(logo())
+
     page_setup = """
-        [![SciSpace](app/static/scispace.png)](http://sci-space.co.uk)
         <div>
             <a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
                 <img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
