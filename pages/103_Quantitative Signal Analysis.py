@@ -150,7 +150,7 @@ def main():
 			sg_window = st.number_input("Savgol filter window", 3, 100, 20, 1)
 		with col_sg_order:
 			sg_order = st.number_input("Savgol filter order", 2, 10, 3, 1)
-		st.caption("Savgol parameters are used for smoothin of the derivative, they do not affect integration.")
+		st.caption("Savgol parameters are used for smoothing of the derivative, they do not affect integration.")
 		tabs = st.tabs([f['feature'] for f in features])
 		for i, tab in enumerate(tabs):
 			f = features[i]
