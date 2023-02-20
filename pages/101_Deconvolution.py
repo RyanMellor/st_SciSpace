@@ -2,37 +2,55 @@ import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, AgGridTheme
 from st_aggrid.grid_options_builder import GridOptionsBuilder
+from st_aggrid.shared import JsCode
 
-import os
-import cv2
 import json
 import numpy as np
 import pandas as pd
-from PIL import Image
 from pprint import pprint
-import plotly.figure_factory as ff
 import plotly.graph_objects as go
 import plotly.express as px
 from lmfit import models
 from sklearn.metrics import r2_score
-from sklearn.mixture import GaussianMixture
 from scipy.signal import savgol_filter
-import requests
-from io import BytesIO
-import urllib.request
 
 from helpers import sci_setup, sci_data
 sci_setup.setup_page("Deconvolution")
 
-# data_test = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.xlsx"
-# model_test_url = r"http://sci-space.co.uk//test_data/Deconvolution%20-%20AuNCs.txt"
-# model_test = urllib.request.urlopen(model_test_url)
-
 data_test = "./assets/public_data/Deconvolution - Data - Test1.xlsx"
 model_test = "./assets/public_data/Deconvolution - Model - Test1.txt"
 
-FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
 PRIMARY_COLOR = "#4589ff"
+
+checkbox_renderer = JsCode("""
+	class CheckboxRenderer{
+
+		init(params) {
+			this.params = params;
+
+			this.eGui = document.createElement('input');
+			this.eGui.type = 'checkbox';
+			this.eGui.checked = params.value;
+
+			this.checkedHandler = this.checkedHandler.bind(this);
+			this.eGui.addEventListener('click', this.checkedHandler);
+		}
+
+		checkedHandler(e) {
+			let checked = e.target.checked;
+			let colId = this.params.column.colId;
+			this.params.node.setDataValue(colId, checked);
+		}
+
+		getGui(params) {
+			return this.eGui;
+		}
+
+		destroy(params) {
+		this.eGui.removeEventListener('click', this.checkedHandler);
+		}
+	}//end class
+	""")
 
 def main():
 
@@ -92,21 +110,6 @@ def main():
 		with open(model_file, 'r') as f:
 			deconvolution_setup = json.load(f)
 
-		# deconvolution_setup = [
-		# 	{
-		# 		'feature': '',
-		# 		'model': '',
-		# 		'color': '',
-		# 		'parameters': [
-		# 			{'parameter': 'amplitude', 'value': None, 'min': None, 'max': None, 'vary': None},
-		# 			{'parameter': 'center', 'value': None, 'min': None, 'max': None, 'vary': None},
-		# 			{'parameter': 'sigma', 'value': None, 'min': None, 'max': None, 'vary': None},
-		# 		]
-		# 	}
-		# ]
-		# with open(r'test_data\Deconvolution - AuNPs - Interacting.txt', 'w') as f:
-		# 	json.dump(deconvolution_setup, f, indent=4)
-
 		df_deconvolution_setup = pd.DataFrame()
 		for f in deconvolution_setup:
 			data = {}
@@ -133,23 +136,27 @@ def main():
 			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
 			theme=AgGridTheme.ALPINE,
 		)
-		# with col_feature_parameters:
+
 		st.markdown("### Feature parameters")
 		ob_parameters = GridOptionsBuilder.from_dataframe(df_deconvolution_setup)
-		ob_parameters.configure_column('feature', hide=True, suppressMenu=True, sortable=False)
+		ob_parameters.configure_column('feature', suppressMenu=True, sortable=False)
 		ob_parameters.configure_column('model', hide=True)
 		ob_parameters.configure_column('color', hide=True)
 		ob_parameters.configure_column('parameter', suppressMenu=True, sortable=False)
 		ob_parameters.configure_column('value', suppressMenu=True, sortable=False, editable=False)
 		ob_parameters.configure_column('min', suppressMenu=True, sortable=False, editable=False)
 		ob_parameters.configure_column('max', suppressMenu=True, sortable=False, editable=False)
-		ob_parameters.configure_column('vary', suppressMenu=True, sortable=False, editable=False)
+		ob_parameters.configure_column('vary', suppressMenu=True, sortable=False, editable=False)#, cellRenderer=checkbox_renderer)
 		ag_parameters = AgGrid(
 			df_deconvolution_setup,
 			ob_parameters.build(),
 			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
 			theme=AgGridTheme.ALPINE,
+			allow_unsafe_jscode=True
 		)
+
+		# df_deconvolution_setup['feature'] = df_deconvolution_setup['feature'].astype("category")
+		# exp_df = st.experimental_data_editor(df_deconvolution_setup)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
@@ -157,77 +164,82 @@ def main():
 
 	with st.expander("Deconvolution result", expanded=True):
 
-		col_deconvolution_plot, col_deconvloution_values = st.columns([2,1])
-		with col_deconvolution_plot:
-			composite_model = None
-			params = None
-			components = ag_parameters.data.groupby('feature')
-			for component in components:
-				name = component[0]
-				df = component[1]
-				prefix = name + '_'
-				model = getattr(models, df.iloc[0]['model'])(prefix=prefix)
-				for i, row in df.iterrows():
-					par = row['parameter']
-					for var in ['value', 'min', 'max', 'vary']:
-						try:
-							val = row[var]
-							if not pd.isnull(val):
-								model.set_param_hint(par, **{var: val})
-						except:
-							pass
-				model_params = model.make_params()
-				if params is None:
-					params = model_params
-				else:
-					params.update(model_params)
-				if composite_model is None:
-					composite_model = model
-				else:
-					composite_model = composite_model + model
+		# col_deconvolution_plot, col_deconvloution_values = st.columns([2,1])
+		# with col_deconvolution_plot:
+		composite_model = None
+		params = None
+		# components = exp_df.groupby('feature')
+		components = ag_parameters.data.groupby('feature')
+		for component in components:
+			name = component[0]
+			df = component[1]
+			prefix = name + '_'
+			model = getattr(models, df.iloc[0]['model'])(prefix=prefix)
+			for i, row in df.iterrows():
+				par = row['parameter']
+				for var in ['value', 'min', 'max', 'vary']:
+					try:
+						val = row[var]
+						if not pd.isnull(val):
+							model.set_param_hint(par, **{var: val})
+					except:
+						pass
+			model_params = model.make_params()
+			if params is None:
+				params = model_params
+			else:
+				params.update(model_params)
+			if composite_model is None:
+				composite_model = model
+			else:
+				composite_model = composite_model + model
 
-			#TODO add options for data_range to sidebar
-			data_range = [400,1000]
-			df_data = df_data[df_data.index >= data_range[0]]
-			df_data = df_data[df_data.index <= data_range[1]]
-			x_data = np.array(df_data.index)
-			try:
-				y_data = np.array(df_data[selected_samples[0]])
-			except:
-				return None
+		#TODO add options for data_range to sidebar
+		data_range = [400,1000]
+		df_data = df_data[df_data.index >= data_range[0]]
+		df_data = df_data[df_data.index <= data_range[1]]
+		x_data = np.array(df_data.index)
+		try:
+			y_data = np.array(df_data[selected_samples[0]])
+		except:
+			return None
 
-			#TODO add options for savgol_filter to sidebar
-			perform_filter = True
-			if perform_filter:
-				y_data = savgol_filter(y_data, 11, 2)
+		#TODO add options for savgol_filter to sidebar
+		perform_filter = True
+		if perform_filter:
+			y_data = savgol_filter(y_data, 11, 2)
 
-			output = composite_model.fit(y_data, params, x=x_data)
-			eval_components = output.eval_components(x=x_data)
-			fit = output.best_fit
-			res = fit - y_data
-			r2 = r2_score(y_data, fit)
+		output = composite_model.fit(y_data, params, x=x_data)
+		eval_components = output.eval_components(x=x_data)
+		fit = output.best_fit
+		res = fit - y_data
+		r2 = r2_score(y_data, fit)
 
-			fig_deconvolution = go.Figure()
-			fig_deconvolution.add_trace(go.Scatter(x=x_data, y=y_data, name='Data', line_color='silver'))
-			fig_deconvolution.add_trace(go.Scatter(x=x_data, y=fit, name=f'Fit: R2={r2:.4f}', line_color='gold'))
-			for name, y_data in eval_components.items():
-				name = name[:-1]
-				df = df_deconvolution_setup[df_deconvolution_setup['feature']==name]
-				color = df.iloc[0]['color']
-				fig_deconvolution.add_trace(go.Scatter(x=x_data, y=y_data, name=name, line_color=color))
+		fig_deconvolution = go.Figure()
+		fig_deconvolution.add_trace(go.Scatter(x=x_data, y=y_data, name='Data', line_color='silver'))
+		fig_deconvolution.add_trace(go.Scatter(x=x_data, y=fit, name=f'Fit: R2={r2:.4f}', line_color='gold'))
+		for name, y_data in eval_components.items():
+			name = name[:-1]
+			df = df_deconvolution_setup[df_deconvolution_setup['feature']==name]
+			color = df.iloc[0]['color']
+			fig_deconvolution.add_trace(go.Scatter(x=x_data, y=y_data, name=name, line_color=color))
 
-			fig_deconvolution.layout.template = 'plotly_dark'
-			fig_deconvolution.layout.legend.traceorder = 'normal'
-			fig_deconvolution.layout.margin = dict(l=20, r=20, t=20, b=20)
-			fig_deconvolution.layout.xaxis.title.text = 'Wavelength (nm)'
-			fig_deconvolution.layout.yaxis.title.text = 'Absorbance'
-			st.plotly_chart(fig_deconvolution, use_container_width=True)
+		fig_deconvolution.layout.template = 'plotly_dark'
+		fig_deconvolution.layout.legend.traceorder = 'normal'
+		fig_deconvolution.layout.margin = dict(l=20, r=20, t=20, b=20)
+		fig_deconvolution.layout.xaxis.title.text = 'Wavelength (nm)'
+		fig_deconvolution.layout.yaxis.title.text = 'Absorbance'
+		st.plotly_chart(fig_deconvolution, use_container_width=True)
 
-		with col_deconvloution_values:
-			st.markdown("### Best fit values")
-			st.write("")
-			for key, val in output.best_values.items():
-				st.write(key, round(val,2))
+	with st.expander("Best fit values"):
+		# with col_deconvloution_values:
+		# st.markdown("### Best fit values")
+		st.write("")
+		best_fit_values_df = pd.DataFrame().from_dict(output.best_values, orient='index')
+		best_fit_values_df.columns=['Value']
+		st.dataframe(best_fit_values_df)
+		# for key, val in output.best_values.items():
+		# 	st.write(key, round(val,2))
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 

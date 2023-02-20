@@ -12,7 +12,7 @@ from simplification.cutil import simplify_coords
 import extcolors
 
 from helpers import sci_setup, sci_data
-sci_setup.setup_page("Data Extractor")
+sci_setup.setup_page("Data Extraction")
 
 img_test = "./assets/public_data/Data Extractor - Test1.png"
 

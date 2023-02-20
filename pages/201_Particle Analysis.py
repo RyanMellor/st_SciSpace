@@ -64,7 +64,7 @@ def img_segragation(img):
 	markers = cv2.watershed(img,markers)
 	img[markers == -1] = [255,0,0]
 
-st.cache(show_spinner=False)
+st.cache_data(show_spinner=False)
 def detect_particles(img, params):
 	diameters = []
 
@@ -98,7 +98,7 @@ def detect_particles(img, params):
 
 	return img_output, circles, diameters
 
-@st.cache(show_spinner=False)
+@st.cache_data(show_spinner=False)
 def resize_img(img: Image, max_height: int=500, max_width: int=500):
 	# Resize the image to be a max of 500x500 by default
 	ratio = 1
@@ -111,7 +111,7 @@ def resize_img(img: Image, max_height: int=500, max_width: int=500):
 	
 	return img, ratio
 
-st.cache(show_spinner=False)
+st.cache_data(show_spinner=False)
 def plot_mixture(gmm, X, show_legend=True, ax=None):
 	if ax is None:
 		ax = plt.gca()
@@ -139,7 +139,7 @@ def plot_mixture(gmm, X, show_legend=True, ax=None):
 		if show_legend:
 			ax.legend()
 
-@st.cache(show_spinner=False)
+@st.cache_data(show_spinner=False)
 def open_img(path):
 	return Image.open(path)
 

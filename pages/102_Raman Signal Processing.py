@@ -38,7 +38,7 @@ from lmfit import Parameters, Model
 from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
 
 from helpers import sci_setup, sci_data
-sci_setup.setup_page("Raman Signal Processor")
+sci_setup.setup_page("Raman Signal Processing")
 
 data_test = "./assets/public_data/Raman Signal Processor - Test1.csv"
 model_test = "./assets/public_data/Deconvolution - Model - Test1.txt"

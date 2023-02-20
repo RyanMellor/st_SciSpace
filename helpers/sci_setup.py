@@ -2,10 +2,10 @@ import streamlit as st
 from PIL import Image
 
 def logo():
-    return Image.open('./scispace.png')
+    return Image.open('./static/scispace.png')
 
 def fav():
-    return Image.open('./favicon.ico')
+    return Image.open('./static/favicon.ico')
 
 def setup_page(page_title):
 
@@ -19,9 +19,8 @@ def setup_page(page_title):
 
     st.set_option('deprecation.showPyplotGlobalUse', False)
 
-    st.sidebar.image(logo())
-
     page_setup = """
+        [![SciSpace](app/static/scispace.png)](http://sci-space.co.uk)
         <div>
             <a href="https://www.buymeacoffee.com/ryanmellor" target="_blank">
                 <img src="https://cdn.buymeacoffee.com/buttons/default-black.png" alt="Buy Me A Coffee" height="41" width="174">
@@ -38,3 +37,15 @@ def setup_page(page_title):
     st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
 
     # [data-testid="stSidebarNav"] .ul {max-heigh:fit-content}
+
+def plot_layout ():
+    return {
+	"template": 'plotly_dark',
+	"margin": dict(l=20, r=20, t=20, b=20),
+	"height":300,
+	"legend": {},
+    "title": {},
+	"xaxis": {},
+	"yaxis": {},
+	# "uirevision": "foo",
+    }
