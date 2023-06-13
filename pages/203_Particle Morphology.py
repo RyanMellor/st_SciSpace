@@ -40,68 +40,71 @@ def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 	
-	col_img, col_settings = st.columns([1,1])
-
 	processed_images = {}
+
+	tab_load, tab_process = st.tabs(["Load", "Process"])
+	with tab_load:
+		col_load_img, col_load_settings = st.columns([1,1])
+	with tab_process:
+		col_process_img, col_process_settings = st.columns([1,1])
 	
-	with col_settings:
-		tab_load, tab_process = st.tabs(["Load", "Process"])
-		with tab_load:
-			img_path = st.file_uploader("Upload Image", label_visibility="collapsed")
-			if not img_path:
-				img_path = img_test
+	with col_load_settings:
+		st.markdown("### Settings")
+		img_path = st.file_uploader("Upload Image", label_visibility="collapsed")
+		if not img_path:
+			img_path = img_test
 
-			st.write("Crop Image")
-			col_top, col_left, col_bottom, col_right = st.columns([1,1,1,1])
-			with col_top:
-				crop_top = st.number_input("Top", value=0.11, min_value=0.0, max_value=1.0, step=0.01)
-			with col_left:
-				crop_left = st.number_input("Left", value=0.12, min_value=0.0, max_value=1.0, step=0.01)
-			with col_bottom:
-				crop_bottom = st.number_input("Bottom", value=0.56, min_value=0.0, max_value=1.0, step=0.01)
-			with col_right:
-				crop_right = st.number_input("Right", value=0.95, min_value=0.0, max_value=1.0, step=0.01)
+		st.write("Crop Image")
+		col_top, col_left, col_bottom, col_right = st.columns([1,1,1,1])
+		with col_top:
+			crop_top = st.number_input("Top", value=0.11, min_value=0.0, max_value=1.0, step=0.01)
+		with col_left:
+			crop_left = st.number_input("Left", value=0.12, min_value=0.0, max_value=1.0, step=0.01)
+		with col_bottom:
+			crop_bottom = st.number_input("Bottom", value=0.56, min_value=0.0, max_value=1.0, step=0.01)
+		with col_right:
+			crop_right = st.number_input("Right", value=0.95, min_value=0.0, max_value=1.0, step=0.01)
 
-			st.write("Calibration")
-			col_startx, col_starty, col_endx, col_endy = st.columns([1,1,1,1])
-			with col_startx:
-				cal_start_x = st.number_input("Start X", value=0.664, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
-			with col_starty:
-				cal_start_y = st.number_input("Start Y", value=0.85, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
-			with col_endx:
-				cal_end_x = st.number_input("End X", value=0.724, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
-			with col_endy:
-				cal_end_y = st.number_input(
-					"End Y", value=0.85, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
-			
-			col_cal_value, col_cal_unit = st.columns([1,1])
-			with col_cal_value:
-				cal_value = st.number_input("Calibration Value", value=20.0, min_value=0.0, step=0.01, disabled=True)
-			with col_cal_unit:
-				cal_unit = st.selectbox("Calibration Unit", ["nm", "µm", "mm", "cm", "m"], disabled=True)
+		st.write("Calibration")
+		col_startx, col_starty, col_endx, col_endy = st.columns([1,1,1,1])
+		with col_startx:
+			cal_start_x = st.number_input("Start X", value=0.664, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
+		with col_starty:
+			cal_start_y = st.number_input("Start Y", value=0.85, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
+		with col_endx:
+			cal_end_x = st.number_input("End X", value=0.724, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
+		with col_endy:
+			cal_end_y = st.number_input(
+				"End Y", value=0.85, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
+		
+		col_cal_value, col_cal_unit = st.columns([1,1])
+		with col_cal_value:
+			cal_value = st.number_input("Calibration Value", value=20.0, min_value=0.0, step=0.01, disabled=True)
+		with col_cal_unit:
+			cal_unit = st.selectbox("Calibration Unit", ["nm", "µm", "mm", "cm", "m"], disabled=True)
 
-			# cal_length = np.sqrt((cal_end_x - cal_start_x)**2 + (cal_end_y - cal_start_y)**2)
-			# cal_scale = cal_value / cal_length
-			# st.write(f"Calibration Scale: {cal_scale:.2f} {cal_unit} per pixel")
+		# cal_length = np.sqrt((cal_end_x - cal_start_x)**2 + (cal_end_y - cal_start_y)**2)
+		# cal_scale = cal_value / cal_length
+		# st.write(f"Calibration Scale: {cal_scale:.2f} {cal_unit} per pixel")
 
-		with tab_process:
-			apply_invert = st.checkbox("Invert Image", value=True)
-			gaussian_kernel = st.slider("Gaussian Blur Kernel", 1, 100, 3, 2)
-			threshold_value = st.slider("Threshold Value", 0, 255, 90, 1)
-			threshold_histogram = st.container()
-			particle_detection_method = st.selectbox(
-				"Particle Detection Method", ["Segmentation", "Watershed"])
-			
-			# col_bilateral_diameter, col_bilateral_sigma_color, col_bilateral_sigma_space = st.columns([1,1,1])
-			# with col_bilateral_diameter:
-			# 	bilateral_diameter = st.slider("Diameter", 1, 100, 11, 2)
-			# with col_bilateral_sigma_color:
-			# 	bilateral_sigma_color = st.slider("Sigma Color", 1, 100, 11, 2)
-			# with col_bilateral_sigma_space:
-			# 	bilateral_sigma_space = st.slider("Sigma Space", 1, 100, 11, 2)
-			# apply_watershed = st.checkbox("Apply Watershed")
-			# # apply_particle_analysis = st.checkbox("Apply Particle Analysis")
-
+	with col_process_settings:
+		st.markdown("### Settings")
+		apply_invert = st.checkbox("Invert Image", value=True)
+		gaussian_kernel = st.slider("Gaussian Blur Kernel", 1, 100, 3, 2)
+		threshold_value = st.slider("Threshold Value", 0, 255, 90, 1)
+		threshold_histogram = st.container()
+		particle_detection_method = st.selectbox(
+			"Particle Detection Method", ["Segmentation", "Watershed"])
+		
+		# col_bilateral_diameter, col_bilateral_sigma_color, col_bilateral_sigma_space = st.columns([1,1,1])
+		# with col_bilateral_diameter:
+		# 	bilateral_diameter = st.slider("Diameter", 1, 100, 11, 2)
+		# with col_bilateral_sigma_color:
+		# 	bilateral_sigma_color = st.slider("Sigma Color", 1, 100, 11, 2)
+		# with col_bilateral_sigma_space:
+		# 	bilateral_sigma_space = st.slider("Sigma Space", 1, 100, 11, 2)
+		# apply_watershed = st.checkbox("Apply Watershed")
+		# # apply_particle_analysis = st.checkbox("Apply Particle Analysis")
 
 
 	# ---- Load and process image ----
@@ -191,13 +194,11 @@ def main():
 
 	# ---- Display images ----
 
-	with col_img:
-		tab_orig, tab_proc  = st.tabs(["Original", "Processed"])
-		with tab_orig:
-			st.image(img_annot, use_column_width=True)
-		with tab_proc:
-			processed_image_selection = st.selectbox("View Processed Image", processed_images.keys(), index=len(processed_images)-1)
-			st.image(processed_images[processed_image_selection], use_column_width=True)
+	with col_load_img:
+		st.image(img_annot, use_column_width=True)
+	with col_process_img:
+		processed_image_selection = st.selectbox("View Processed Image", processed_images.keys(), index=len(processed_images)-1, label_visibility="collapsed")
+		st.image(processed_images[processed_image_selection], use_column_width=True)
 	
 
 	# ---- Particle Analysis ----
