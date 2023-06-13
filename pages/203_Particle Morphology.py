@@ -11,9 +11,9 @@ from skimage.segmentation import watershed
 from skimage import measure
 from skimage.color import label2rgb
 from skimage.measure import regionprops
+from skimage.feature import peak_local_max
 from sklearn.preprocessing import MinMaxScaler
 from scipy import ndimage as ndi
-from skimage.feature import peak_local_max
 
 import os
 os.environ["OMP_NUM_THREADS"] = '1'
