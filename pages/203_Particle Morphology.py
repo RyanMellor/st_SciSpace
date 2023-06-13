@@ -243,7 +243,7 @@ def main():
 
 		# Create a mask for the particle within the bounding box
 		bbox_coords = region_info['coords'] - [minr, minc]
-		mask = np.zeros_like(particle_bbox, dtype=np.bool)
+		mask = np.zeros_like(particle_bbox, dtype=bool)
 		mask[bbox_coords[:, 0], bbox_coords[:, 1]] = True
 
 		# Apply the mask to the bounding box to isolate the particle
