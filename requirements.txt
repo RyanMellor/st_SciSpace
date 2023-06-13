@@ -16,3 +16,5 @@ statsmodels==0.13.2
 colorutils==0.3.0
 simplification==0.6.2
 extcolors==1.0.0
+jinja2==3.1.2
+xhtml2pdf==0.2.9

@@ -1,0 +1,48 @@
+@page {
+  size: a4;
+  margin-top: 2cm;
+  margin-bottom: 3cm;
+  margin-left: 2cm;
+  margin-right: 2cm;
+  background-image: 'static/watermark.png';
+
+  @frame footer_frame {
+    -pdf-frame-content: footer_content;
+    left: 50pt;
+    width: 512pt;
+    top: 772pt;
+    height: 20pt;
+  }
+}
+
+body {
+  font-family: "Roboto", sans-serif;
+  font-size: 12pt;
+  margin: 0;
+  padding: 0;
+  text-align: justify;
+}
+
+.header {
+  background-color: rgb(100, 100, 100);
+  border-top: 10px solid #58bbee;
+  padding: 10px;
+  font-size: 2em;
+  text-align: center !important;
+}
+
+h1 {
+  color: #09415d;
+}
+
+.text-center {
+  text-align: center !important;
+}
+
+.text-blue {
+  color: #58bbee;
+}
+
+.text-white {
+  color: #fff;
+}
