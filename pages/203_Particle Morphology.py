@@ -211,7 +211,7 @@ def main():
 
 	df_particles = pd.DataFrame(columns=properties)
 	for region in regions:
-		df_particles = df_particles.append(pd.DataFrame([[getattr(region, prop) for prop in properties]], columns=properties), ignore_index=True)
+		df_particles = pd.concat([df_particles, pd.DataFrame([[getattr(region, prop) for prop in properties]], columns=properties)], ignore_index=True)
 	
 	with st.expander("Particle Data"):
 		st.dataframe(df_particles, use_container_width=True)
