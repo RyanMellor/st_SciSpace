@@ -53,13 +53,11 @@ def resize_img(img: Image, max_height: int = 500, max_width: int = 500):
 
 	return img, ratio
 
-
-if 'canvas_key' not in st.session_state:
-	st.session_state['canvas_key'] = str(uuid4())
 def new_canvas_key():
+	st.session_state['canvas_key'] = f'canvas_{str(uuid4())}'
 
-	st.session_state['canvas_key'] = str(uuid4())
-	
+if 'canvas_key' not in st.session_state.keys():
+	new_canvas_key()
 
 def main():
 
@@ -142,7 +140,6 @@ def main():
 			stroke_color = PRIMARY_COLOR,
 			stroke_width = 4
 		)
-		st.session_state
 		st.caption("Doubleclicking objects will remove them.")
 	
 		try:
