@@ -53,11 +53,11 @@ def resize_img(img: Image, max_height: int = 500, max_width: int = 500):
 
 	return img, ratio
 
-def new_canvas_key():
-	st.session_state['canvas_key'] = f'canvas_{str(uuid4())}'
+# def new_canvas_key():
+# 	st.session_state['canvas_key'] = f'canvas_{str(uuid4())}'
 
-if 'canvas_key' not in st.session_state.keys():
-	new_canvas_key()
+# if 'canvas_key' not in st.session_state.keys():
+# 	new_canvas_key()
 
 def main():
 
@@ -129,7 +129,8 @@ def main():
 			st.experimental_rerun()
 
 		canvas_result = st_canvas(
-			key = st.session_state['canvas_key'],
+			# key = st.session_state['canvas_key'],
+			key = 'canvas',
 			background_image = img_resized,
 			height = img_resized.height,
 			width = img_resized.width,
