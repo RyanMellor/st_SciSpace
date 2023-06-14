@@ -6,6 +6,7 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 import imutils
+from uuid import uuid4
 
 import plotly.graph_objects as go
 
@@ -52,9 +53,12 @@ def resize_img(img: Image, max_height: int = 500, max_width: int = 500):
 
 	return img, ratio
 
-def remove_canvas():
-	if 'canvas' in st.session_state:
-		del st.session_state['canvas']
+
+if 'canvas_key' not in st.session_state:
+	st.session_state['canvas_key'] = str(uuid4())
+def new_canvas_key():
+
+	st.session_state['canvas_key'] = str(uuid4())
 	
 
 def main():
@@ -72,10 +76,10 @@ def main():
 		col_process_img, col_process_settings = st.columns([3,1])
 
 	# ---- Load Image ----
-	
+
 	with col_load_settings:
 		st.markdown("### Settings")
-		img_path = st.file_uploader("Upload Image", label_visibility="collapsed", on_change=remove_canvas)
+		img_path = st.file_uploader("Upload Image", label_visibility="collapsed", on_change=new_canvas_key)
 		
 		scale_val = st.number_input("Scalebar length", value=20, disabled=True)
 		scale_units_val = st.text_input("Scalebar units", value="nm", disabled=True)
@@ -121,9 +125,13 @@ def main():
 				}
 			]
 		}
+		if 'canvas' in st.session_state and st.session_state['canvas'] != {}:
+			del st.session_state['canvas']
+			st.session_state['canvas'] = {}
+			st.experimental_rerun()
 
 		canvas_result = st_canvas(
-			key = "canvas",
+			key = st.session_state['canvas_key'],
 			background_image = img_resized,
 			height = img_resized.height,
 			width = img_resized.width,
@@ -134,6 +142,7 @@ def main():
 			stroke_color = PRIMARY_COLOR,
 			stroke_width = 4
 		)
+		st.session_state
 		st.caption("Doubleclicking objects will remove them.")
 	
 		try:
