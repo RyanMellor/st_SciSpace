@@ -77,7 +77,8 @@ def main():
 
 	with col_load_settings:
 		st.markdown("### Settings")
-		img_path = st.file_uploader("Upload Image", label_visibility="collapsed", on_change=new_canvas_key)
+		# img_path = st.file_uploader("Upload Image", label_visibility="collapsed", on_change=new_canvas_key)
+		img_path = st.file_uploader("Upload Image", label_visibility="collapsed")
 		
 		scale_val = st.number_input("Scalebar length", value=20, disabled=True)
 		scale_units_val = st.text_input("Scalebar units", value="nm", disabled=True)
