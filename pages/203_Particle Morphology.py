@@ -53,11 +53,11 @@ def resize_img(img: Image, max_height: int = 500, max_width: int = 500):
 
 	return img, ratio
 
-# def new_canvas_key():
-# 	st.session_state['canvas_key'] = f'canvas_{str(uuid4())}'
+def new_canvas_key():
+	st.session_state['canvas_key'] = f'canvas_{str(uuid4())}'
 
-# if 'canvas_key' not in st.session_state.keys():
-# 	new_canvas_key()
+if 'canvas_key' not in st.session_state.keys():
+	new_canvas_key()
 
 def main():
 
@@ -77,8 +77,8 @@ def main():
 
 	with col_load_settings:
 		st.markdown("### Settings")
-		# img_path = st.file_uploader("Upload Image", label_visibility="collapsed", on_change=new_canvas_key)
-		img_path = st.file_uploader("Upload Image", label_visibility="collapsed")
+		img_path = st.file_uploader("Upload Image", label_visibility="collapsed", on_change=new_canvas_key)
+		# img_path = st.file_uploader("Upload Image", label_visibility="collapsed")
 		
 		scale_val = st.number_input("Scalebar length", value=20, disabled=True)
 		scale_units_val = st.text_input("Scalebar units", value="nm", disabled=True)
@@ -127,8 +127,8 @@ def main():
 		}
 
 		canvas_result = st_canvas(
-			# key = st.session_state['canvas_key'],
-			key = 'canvas',
+			key = st.session_state['canvas_key'],
+			# key = 'canvas',
 			background_image = img_resized,
 			height = img_resized.height,
 			width = img_resized.width,
