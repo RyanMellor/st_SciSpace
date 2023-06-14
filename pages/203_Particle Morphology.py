@@ -92,7 +92,8 @@ def main():
 			img_path = img_test
 
 		# Load image
-		img_orig = open_img(img_path).convert("RGB")
+		img_orig = open_img(img_path)
+		img_orig = img_orig.convert('RGB')
 		# Normalize image to a width of 1000 pixels
 		img_resized = np.array(img_orig)
 		img_resized = imutils.resize(img_resized, width=500)
