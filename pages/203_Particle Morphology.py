@@ -1,4 +1,6 @@
 import streamlit as st
+from streamlit_drawable_canvas import st_canvas
+
 import cv2
 from PIL import Image
 import numpy as np
@@ -7,13 +9,14 @@ import imutils
 
 import plotly.graph_objects as go
 
-from skimage.segmentation import watershed
-from skimage import measure
+from skimage import measure, morphology, segmentation
 from skimage.color import label2rgb
-from skimage.measure import regionprops
 from skimage.feature import peak_local_max
+from skimage.measure import regionprops
+from skimage.segmentation import watershed
 from sklearn.preprocessing import MinMaxScaler
 from scipy import ndimage as ndi
+
 
 import os
 os.environ["OMP_NUM_THREADS"] = '1'
@@ -36,65 +39,147 @@ img_test = "./assets/public_data/Particle Analysis - Test2.tif"
 def open_img(path):
 	return Image.open(path)
 
+@st.cache_data(show_spinner=False)
+def resize_img(img: Image, max_height: int = 500, max_width: int = 500):
+	# Resize the image to be a max of 500x500 by default
+	ratio = 1
+	if img.height > max_height:
+		ratio = max_height / img.height
+		img = img.resize((int(img.width * ratio), int(img.height * ratio)))
+	if img.width > max_width:
+		ratio = max_width / img.width
+		img = img.resize((int(img.width * ratio), int(img.height * ratio)))
+
+	return img, ratio
+
+def remove_canvas():
+	if 'canvas' in st.session_state:
+		del st.session_state['canvas']
+	st.experimental_rerun()
+
 def main():
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 	
 	processed_images = {}
 
+	# ---- Basic Layout ----
+
 	tab_load, tab_process = st.tabs(["Load", "Process"])
 	with tab_load:
-		col_load_img, col_load_settings = st.columns([1,1])
+		col_load_img, col_load_settings = st.columns([3,1])
 	with tab_process:
-		col_process_img, col_process_settings = st.columns([1,1])
+		col_process_img, col_process_settings = st.columns([3,1])
+
+	# ---- Load Image ----
 	
 	with col_load_settings:
 		st.markdown("### Settings")
-		img_path = st.file_uploader("Upload Image", label_visibility="collapsed")
+		img_path = st.file_uploader("Upload Image", label_visibility="collapsed", on_change=remove_canvas)
+		
+		scale_val = st.number_input("Scalebar length", value=20, disabled=True)
+		scale_units_val = st.text_input("Scalebar units", value="nm", disabled=True)
+
+		st.markdown("<hr/>", unsafe_allow_html=True)
+
+		add_roi = st.checkbox("Add ROI", False)
+		add_scalebar = st.checkbox("Add scalebar", False)
+		
 		if not img_path:
 			img_path = img_test
 
-		st.write("Crop Image")
-		col_top, col_left, col_bottom, col_right = st.columns([1,1,1,1])
-		with col_top:
-			crop_top = st.number_input("Top", value=0.11, min_value=0.0, max_value=1.0, step=0.01)
-		with col_left:
-			crop_left = st.number_input("Left", value=0.12, min_value=0.0, max_value=1.0, step=0.01)
-		with col_bottom:
-			crop_bottom = st.number_input("Bottom", value=0.56, min_value=0.0, max_value=1.0, step=0.01)
-		with col_right:
-			crop_right = st.number_input("Right", value=0.95, min_value=0.0, max_value=1.0, step=0.01)
+		# Load image
+		img_orig = open_img(img_path).convert("RGB")
+		# Normalize image to a width of 1000 pixels
+		img_resized = np.array(img_orig)
+		img_resized = imutils.resize(img_resized, width=500)
+		img_resized = Image.fromarray(img_resized)
+		# img_resized, scalefactor = resize_img(img_orig)
 
-		st.write("Calibration")
-		col_startx, col_starty, col_endx, col_endy = st.columns([1,1,1,1])
-		with col_startx:
-			cal_start_x = st.number_input("Start X", value=0.664, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
-		with col_starty:
-			cal_start_y = st.number_input("Start Y", value=0.85, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
-		with col_endx:
-			cal_end_x = st.number_input("End X", value=0.724, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
-		with col_endy:
-			cal_end_y = st.number_input(
-				"End Y", value=0.85, min_value=0.0, max_value=1.0, step=0.001, format="%.3f")
+		drawing_mode = 'transform'
+		if add_roi:
+			drawing_mode = 'rect'
+		if add_scalebar:
+			drawing_mode = 'line'
+
+	# Add a column to contain original image
+	with col_load_img:
+		initial_drawing = {
+			'version': '4.4.0',
+			'objects': [
+				{
+				'type': 'line',
+				'x1': img_resized.width*0.66, 'y1': img_resized.height*0.85,
+				'x2': img_resized.width*0.725, 'y2': img_resized.height*0.85,
+				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
+				},
+				{
+				'type': 'rect',
+				'left': img_resized.width*0.1, 'top': img_resized.height*0.1,
+				'width': img_resized.width*0.85, 'height': img_resized.height*0.45,
+				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
+				}
+			]
+		}
+
+		canvas_result = st_canvas(
+			key = "canvas",
+			background_image = img_resized,
+			height = img_resized.height,
+			width = img_resized.width,
+			drawing_mode = drawing_mode,
+			display_toolbar = False,
+			initial_drawing = initial_drawing,
+			fill_color = '#00000000',
+			stroke_color = PRIMARY_COLOR,
+			stroke_width = 4
+		)
+		st.caption("Doubleclicking objects will remove them.")
+	
+		try:
+			crop_rect = [d for d in canvas_result.json_data['objects'] if d['type']=='rect'][0]	
+		except:
+			st.error("Oops! You've removed your ROI, please add an ROI to continue.")
+			return None
+				
+		crop_left = crop_rect['left']
+		crop_top = crop_rect['top']
+		crop_right = crop_left + crop_rect['width']*crop_rect['scaleX']
+		crop_bottom = crop_top + crop_rect['height']*crop_rect['scaleY']
+		if crop_left < 0:
+			crop_left = 0
+		if crop_top < 0:
+			crop_top = 0
+		if crop_right > img_resized.width:
+			crop_right = img_resized.width
+		if crop_bottom > img_resized.height:
+			crop_bottom = img_resized.height
 		
-		col_cal_value, col_cal_unit = st.columns([1,1])
-		with col_cal_value:
-			cal_value = st.number_input("Calibration Value", value=20.0, min_value=0.0, step=0.01, disabled=True)
-		with col_cal_unit:
-			cal_unit = st.selectbox("Calibration Unit", ["nm", "µm", "mm", "cm", "m"], disabled=True)
+		try:
+			scalebar_line = [d for d in canvas_result.json_data['objects'] if d['type']=='line'][0]
+		except:
+			st.error("Oops! You've removed your scalebar, please add a scalebar to continue.")
+			return None
+		
+		scalebar_left = scalebar_line['left']
+		scalebar_top = scalebar_line['top']
+		scalebar_right = scalebar_left + scalebar_line['width']*scalebar_line['scaleX']
+		scalebar_bottom = scalebar_top + scalebar_line['height']*scalebar_line['scaleY']
+		scalebar_px = np.sqrt((scalebar_right-scalebar_left)**2 + (scalebar_bottom-scalebar_top)**2)
 
-		# cal_length = np.sqrt((cal_end_x - cal_start_x)**2 + (cal_end_y - cal_start_y)**2)
-		# cal_scale = cal_value / cal_length
-		# st.write(f"Calibration Scale: {cal_scale:.2f} {cal_unit} per pixel")
+
+	# ---- Image processing setting ----
 
 	with col_process_settings:
 		st.markdown("### Settings")
-		apply_invert = st.checkbox("Invert Image", value=True)
+		apply_invert = st.checkbox("Invert Image", value=True, help="Image processing requires light particles on a dark background.")
 		gaussian_kernel = st.slider("Gaussian Blur Kernel", 1, 100, 3, 2)
 		threshold_value = st.slider("Threshold Value", 0, 255, 90, 1)
 		threshold_histogram = st.container()
 		particle_detection_method = st.selectbox(
 			"Particle Detection Method", ["Segmentation", "Watershed"])
+		remove_border_particles = st.checkbox("Remove Border Particles", value=True)
+		# min_particle_area, max_particle_area = st.slider("Particle Area", 0, 10000, (10, 10000), 1)
 		
 		# col_bilateral_diameter, col_bilateral_sigma_color, col_bilateral_sigma_space = st.columns([1,1,1])
 		# with col_bilateral_diameter:
@@ -107,28 +192,17 @@ def main():
 		# # apply_particle_analysis = st.checkbox("Apply Particle Analysis")
 
 
-	# ---- Load and process image ----
-
-	# Load image
-	img_orig = open_img(img_path).convert("RGB")
-	# Convert image to numpy array
-	img_orig = np.array(img_orig)
-	# Normalize image to a width of 1000 pixels
-	img_orig = imutils.resize(img_orig, width=1000)
-	# Create copies of the original image for annotation and processing
-	img_annot = img_orig.copy()
-	img_proc = img_orig.copy()
-
-	# Add crop rectangle to the annotated image
-	cv2.rectangle(img_annot, (int(crop_left*img_orig.shape[1]), int(crop_top*img_orig.shape[0])), (int(crop_right*img_orig.shape[1]), int(crop_bottom*img_orig.shape[0])), (100, 149, 237), 5)
-	# Add calibration line to the annotated image
-	cv2.line(img_annot, (int(cal_start_x*img_orig.shape[1]), int(cal_start_y*img_orig.shape[0])), (int(cal_end_x*img_orig.shape[1]), int(cal_end_y*img_orig.shape[0])), (100, 149, 237), 5)
-
-
 	# ---- Process image and save result at each step ----
 
 	# Crop the image
-	img_proc = img_proc[int(crop_top*img_orig.shape[0]):int(crop_bottom*img_orig.shape[0]), int(crop_left*img_orig.shape[1]):int(crop_right*img_orig.shape[1])]
+	img_proc = img_orig.crop((
+		int((crop_left / img_resized.width) * img_orig.width),
+		int((crop_top / img_resized.height) * img_orig.height),
+		int((crop_right / img_resized.width) * img_orig.width),
+		int((crop_bottom / img_resized.height) * img_orig.height)
+	))
+	img_proc = np.array(img_proc)
+	# img_proc = img_proc[int(crop_top*img_orig_arr.shape[0]):int(crop_bottom*img_orig_arr.shape[0]), int(crop_left*img_orig_arr.shape[1]):int(crop_right*img_orig_arr.shape[1])]
 	processed_images['Original'] = cv2.cvtColor(img_proc, cv2.COLOR_RGB2RGBA)
 
 	# Convert to grayscale
@@ -185,6 +259,13 @@ def main():
 		markers = ndi.label(local_maxima)[0]
 		# Apply watershed
 		label_img = watershed(-distance, markers, mask=img_proc)
+	
+	# Remove small particles
+	label_img = morphology.remove_small_objects(label_img, min_size=10)
+
+	# Remove particles touching the border
+	if remove_border_particles:
+		label_img = segmentation.clear_border(label_img)
 
 	img_label_overlay = label2rgb(label_img, image=img_proc)
 	alpha = np.full((img_label_overlay.shape[0], img_label_overlay.shape[1]), 1, dtype=np.uint8)
@@ -192,10 +273,8 @@ def main():
 	processed_images[particle_detection_method] = img_label_overlay.copy()
 
 
-	# ---- Display images ----
+	# ---- Display processed images ----
 
-	with col_load_img:
-		st.image(img_annot, use_column_width=True)
 	with col_process_img:
 		processed_image_selection = st.selectbox("View Processed Image", processed_images.keys(), index=len(processed_images)-1, label_visibility="collapsed")
 		st.image(processed_images[processed_image_selection], use_column_width=True)
@@ -205,6 +284,10 @@ def main():
 
 	# Get particle properties
 	regions = regionprops(label_img)
+	if len(regions) == 0:
+		st.error("No particles detected")
+		return None
+
 	properties = [
 		'area', 'equivalent_diameter_area', 'perimeter',
 		'major_axis_length', 'minor_axis_length',
@@ -267,27 +350,27 @@ def main():
 		new_image[y_start:y_start+particle_height, x_start:x_start+particle_width] = np.where(particle, particle, new_image[y_start:y_start+particle_height, x_start:x_start+particle_width])
 		
 
-	col_l, col_c, col_r = st.columns([1,4,1])
-	with col_c:
-		tab_particles_as_markers, tab_plot_data, tab_histogram  = st.tabs(["Particles as Markers", "Plot Data", "Histogram"])
-		with tab_particles_as_markers:
-			st.image(new_image, use_column_width=True, clamp=True)
-		with tab_plot_data:
-			fig = go.Figure()
-			fig.update_layout(
-				xaxis_title=x_axis,
-				yaxis_title=y_axis,
-			)
-			fig.add_trace(go.Scatter(x=df_particles[x_axis], y=df_particles[y_axis], mode='markers'))
-			st.plotly_chart(fig, use_container_width=True)
-		with tab_histogram:
-			fig = go.Figure()
-			fig.update_layout(
-				xaxis_title=x_axis,
-				yaxis_title="Count",
-			)
-			fig.add_trace(go.Histogram(x=df_particles[x_axis]))
-			st.plotly_chart(fig, use_container_width=True)
+	# col_l, col_c, col_r = st.columns([1,4,1])
+	# with col_c:
+	tab_particles_as_markers, tab_plot_data, tab_histogram  = st.tabs(["Particles as Markers", "Plot Data", "Histogram"])
+	with tab_particles_as_markers:
+		st.image(new_image, use_column_width=True, clamp=True)
+	with tab_plot_data:
+		fig = go.Figure()
+		fig.update_layout(
+			xaxis_title=x_axis,
+			yaxis_title=y_axis,
+		)
+		fig.add_trace(go.Scatter(x=df_particles[x_axis], y=df_particles[y_axis], mode='markers'))
+		st.plotly_chart(fig, use_container_width=True)
+	with tab_histogram:
+		fig = go.Figure()
+		fig.update_layout(
+			xaxis_title=x_axis,
+			yaxis_title="Count",
+		)
+		fig.add_trace(go.Histogram(x=df_particles[x_axis]))
+		st.plotly_chart(fig, use_container_width=True)
 		
 
 if __name__ == "__main__":

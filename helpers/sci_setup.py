@@ -12,7 +12,7 @@ def setup_page(page_title):
     st.set_page_config(
         page_title=page_title,
         page_icon=fav(),
-        layout="wide", # "centered"
+        layout="centered" #"wide", # "centered"
     )
 
     st.title(page_title)
@@ -33,6 +33,7 @@ def setup_page(page_title):
             [data-testid="stTickBar"] {height:0; visibility:hidden;}
             thead tr th:first-child {display:none}
             tbody th {display:none}
+            [data-testid="stFileUploadDropzone"] {display:grid}
         </style>
     """
     st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
