@@ -55,7 +55,7 @@ def resize_img(img: Image, max_height: int = 500, max_width: int = 500):
 def remove_canvas():
 	if 'canvas' in st.session_state:
 		del st.session_state['canvas']
-	st.experimental_rerun()
+	
 
 def main():
 
