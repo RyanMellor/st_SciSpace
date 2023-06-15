@@ -14,7 +14,7 @@ import math
 import os
 os.environ["OMP_NUM_THREADS"] = '1'
 
-from helpers import sci_setup, sci_data
+from helpers import sci_setup, sci_data, sci_image
 sci_setup.setup_page("Particle Analysis")
 
 import warnings
@@ -153,89 +153,27 @@ def main():
 	st.markdown("### Setup")
 	
 	with st.expander("Upload image, add ROI, and define scale", expanded=True):
-		img_file = st.file_uploader(label='Upload image file', type=FILETYPES_IMG, label_visibility='collapsed')
+		img_file = st.file_uploader(label='Upload image file', type=FILETYPES_IMG, label_visibility='collapsed', on_change=sci_image.new_canvas_key)
 
 		if not img_file:
 			img_file = img_test
 			st.caption("The example shown here is of silica coated gold nanoparticles. The analyzer distinguishes three distinct populations for core, shell, and contaminant silica particles.")
 		img_original = open_img(img_file)
 		img_original = img_original.convert("RGB")
-		img = img_original.copy()
-		img, scalefactor = resize_img(img_original)
 
-		col_original_img, col_img_settings = st.columns([3,1])
-		
-		# Add a column to contain image settings
-		with col_img_settings:
-			scale_val = st.number_input("Scalebar length", value=500)
-			scale_units_val = st.text_input("Scalebar units", value="nm")
-			st.markdown("<hr/>", unsafe_allow_html=True)
-			add_roi = st.checkbox("Add ROI", False)
-			add_scalebar = st.checkbox("Add scalebar", False)
-		
-		drawing_mode = 'transform'
-		if add_roi:
-			drawing_mode = 'rect'
-		if add_scalebar:
-			drawing_mode = 'line'
-		
-		# Add a column to contain original image
-		with col_original_img:
-			initial_drawing = {
-				'version': '4.4.0',
-				'objects': [
-					{
-					'type': 'line', 'originX': 'left', 'originY': 'top',
-					'x1': img.width*0.68, 'y1': img.height*0.85,
-					'x2': img.width*0.84, 'y2': img.height*0.85,
-					'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
-					},
-					{
-					'type': 'rect', 'originX': 'left', 'originY': 'top',
-					'left': img.width*0.1, 'top': img.height*0.1,
-					'width': img.width*0.8, 'height': img.height*0.65,
-					'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
-					}
-				]
-			}
-
-			canvas_result = st_canvas(
-				key = "canvas",
-				background_image = img,
-				height = img.height,
-				width = img.width,
-				drawing_mode = drawing_mode,
-				display_toolbar = False,
-				initial_drawing = initial_drawing,
-				fill_color = '#00000000',
-				stroke_color = PRIMARY_COLOR,
-				stroke_width = 4
-			)
-			st.caption("Doubleclicking objects will remove them.")
-		
-		try:
-			crop_rect = [d for d in canvas_result.json_data['objects'] if d['type']=='rect'][0]	
-		except:
-			st.write("Oops! You've removed your ROI, please add an ROI to continue.")
-			return None
-		crop_left = crop_rect['left']
-		crop_top = crop_rect['top']
-		crop_right = crop_left + crop_rect['width']*crop_rect['scaleX']
-		crop_bottom = crop_top + crop_rect['height']*crop_rect['scaleY']
-		img_crop =  img_original.crop((
-			int((crop_left / img.width) * img_original.width),
-			int((crop_top / img.height) * img_original.height),
-			int((crop_right / img.width) * img_original.width),
-			int((crop_bottom / img.height) * img_original.height)
-			))
-		
-		try:
-			scalebar_line = [d for d in canvas_result.json_data['objects'] if d['type']=='line'][0]
-		except:
-			st.write("Oops! You've removed your scalebar, please add a scalebar to continue.")
-			return None
-
-		scalebar_px = scalebar_line['width'] * scalebar_line['scaleX']
+		# Set initial values for ROI and scalebar
+		initial_roi_pos = (0.1, 0.1, 0.8, 0.65)
+		initial_scalebar_pos = (0.68, 0.85, 0.84, 0.85)
+		initial_scalebar_length = 100
+		initial_scalebar_units = "nm"
+		# Perform cropping and calibration on original image
+		crop_and_calibrate = sci_image.crop_and_calibrate(img_original, initial_roi_pos, initial_scalebar_pos, initial_scalebar_length, initial_scalebar_units)
+		# Extract the output of the crop and calibrate function
+		img_cropped = crop_and_calibrate['img_cropped']
+		scalebar_length = crop_and_calibrate['scalebar_length']
+		scalebar_units = crop_and_calibrate['scalebar_units']
+		scalebar_length_px = crop_and_calibrate['scalebar_length_px']
+		scalefactor = crop_and_calibrate['scalefactor']
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 	
@@ -260,31 +198,31 @@ def main():
 			param2_val = st.slider("Param 2", min_value=0.0, max_value=1.0, value=0.8,
 				help="The circle 'perfectness' measure")
 
-			# min_dist_val = st.slider(f"Min distance ({scale_units_val})", min_value=1, max_value=500, value=10,
+			# min_dist_val = st.slider(f"Min distance ({scalebar_units})", min_value=1, max_value=500, value=10,
 			# 	help="Minimum distance between the centers of the detected circles.")
 
-			# diameter_val = st.slider(f"Diameter ({scale_units_val})", min_value=1, max_value=500, value=(10,300),
+			# diameter_val = st.slider(f"Diameter ({scalebar_units})", min_value=1, max_value=500, value=(10,300),
 			# 	help="Minimum and maximum circle diameter.")
 
 			min_dist_val = st.number_input(
-				f"Min distance ({scale_units_val})",
-				min_value=float(scale_val/1000),
-				max_value=float(scale_val*1000),
-				value=float(scale_val/10),
+				f"Min distance ({scalebar_units})",
+				min_value=float(scalebar_length/1000),
+				max_value=float(scalebar_length*1000),
+				value=float(scalebar_length/10),
 				help="Minimum distance between the centers of the detected circles.")
 
 			min_diameter_val = st.number_input(
-				f"Min diameter ({scale_units_val})",
-				min_value=float(scale_val/1000),
-				max_value=float(scale_val*1000),
-				value=float(scale_val/100),
+				f"Min diameter ({scalebar_units})",
+				min_value=float(scalebar_length/1000),
+				max_value=float(scalebar_length*1000),
+				value=float(scalebar_length/100),
 				help="Minimum circle diameter.")
 
 			max_diameter_val = st.number_input(
-				f"Max diameter ({scale_units_val})",
-				min_value=float(scale_val/1000),
-				max_value=float(scale_val*1000),
-				value=float(scale_val),
+				f"Max diameter ({scalebar_units})",
+				min_value=float(scalebar_length/1000),
+				max_value=float(scalebar_length*1000),
+				value=float(scalebar_length),
 				help="Maximum circle diameter.")
 
 		detection_settings = {
@@ -295,14 +233,14 @@ def main():
 			"param2_val": param2_val,
 			# "min_dist_val": min_dist_val,
 			# "diameter_val": diameter_val,
-			"min_dist_val": min_dist_val / (scalefactor * scale_val/scalebar_px),
-			"diameter_val": [i / (scalefactor * scale_val/scalebar_px) for i in [min_diameter_val, max_diameter_val]],
+			"min_dist_val": min_dist_val / (scalefactor * scalebar_length/scalebar_length_px),
+			"diameter_val": [i / (scalefactor * scalebar_length/scalebar_length_px) for i in [min_diameter_val, max_diameter_val]],
 		}
 		
 		with col_detected_particles:
-			img_output, circles, diameters_px = detect_particles(img_crop, detection_settings)
+			img_output, circles, diameters_px = detect_particles(img_cropped, detection_settings)
 			st.image(img_output)
-			diameters_units = [i * (scale_val/scalebar_px) * scalefactor for i in diameters_px]
+			diameters_units = [i * (scalebar_length/scalebar_length_px) * scalefactor for i in diameters_px]
 
 		st.caption("More information on circle detection parameters can be found [here](https://docs.opencv.org/4.x/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d)")
 
@@ -322,10 +260,10 @@ def main():
 		rs.append(r)
 	with st.expander(label="Particles"):
 		df = pd.DataFrame(
-			{f'Diameter ({scale_units_val})': diameters_units,
+			{f'Diameter ({scalebar_units})': diameters_units,
 			'x (px)':xs,
 			'y (px)': ys}
-			# columns=[f'Diameter ({scale_units_val})']
+			# columns=[f'Diameter ({scalebar_units})']
 		)
 		df.index += 1
 		st.dataframe(df)
@@ -382,7 +320,7 @@ def main():
 				fig.add_trace(go.Scatter(x=x, y=y, name=f"Component {i+1}"))
 
 			fig.layout.template = 'plotly_dark'
-			fig.layout.xaxis.title.text = f'Particle diameter ({scale_units_val})'
+			fig.layout.xaxis.title.text = f'Particle diameter ({scalebar_units})'
 			fig.layout.legend.traceorder = 'normal'
 			fig.layout.margin = dict(l=20, r=20, t=20, b=20)
 			st.plotly_chart(fig, use_container_width=True)
@@ -394,10 +332,10 @@ def main():
 		stds = [ np.sqrt(  np.trace(covs[i])/(N+1)) for i in range(0,N+1) ]
 
 		df = pd.DataFrame(data={
-			f"Mean ({scale_units_val})": [round(i[0],2) for i in means],
-			f"Standard deviation ({scale_units_val})": [round(i,2) for i in stds],		
+			f"Mean ({scalebar_units})": [round(i[0],2) for i in means],
+			f"Standard deviation ({scalebar_units})": [round(i,2) for i in stds],		
 		})
-		df.sort_values(f"Mean ({scale_units_val})", inplace=True)
+		df.sort_values(f"Mean ({scalebar_units})", inplace=True)
 		df.reset_index(drop=True, inplace=True)
 		df.index += 1
 		st.dataframe(df)
