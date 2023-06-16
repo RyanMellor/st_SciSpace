@@ -65,8 +65,6 @@ def main():
 		crop_and_calibrate = sci_image.crop_and_calibrate(
 			img_original, initial_roi_pos, initial_scalebar_pos, initial_scalebar_length, initial_scalebar_units)
 		# Extract the output of the crop and calibrate function
-		if not crop_and_calibrate:
-			st.stop()
 		img_cropped = crop_and_calibrate['img_cropped']
 		scalebar_length = crop_and_calibrate['scalebar_length']
 		scalebar_units = crop_and_calibrate['scalebar_units']
