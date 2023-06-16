@@ -109,6 +109,7 @@ def crop_and_calibrate(
 		)
 		st.caption("Doubleclicking objects will remove them.")
 
+	st.write(canvas_result.json_data)
 	try:
 		crop_rect = [d for d in canvas_result.json_data['objects'] if d['type']=='rect'][0]	
 	except:

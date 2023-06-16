@@ -164,7 +164,7 @@ def main():
 		# Set initial values for ROI and scalebar
 		initial_roi_pos = (0.1, 0.1, 0.8, 0.65)
 		initial_scalebar_pos = (0.68, 0.85, 0.84, 0.85)
-		initial_scalebar_length = 100
+		initial_scalebar_length = 500
 		initial_scalebar_units = "nm"
 		# Perform cropping and calibration on original image
 		crop_and_calibrate = sci_image.crop_and_calibrate(img_original, initial_roi_pos, initial_scalebar_pos, initial_scalebar_length, initial_scalebar_units)

@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 from skimage import measure, morphology, segmentation
 from skimage.color import label2rgb
 from skimage.feature import peak_local_max
-from skimage.measure import regionprops
+from skimage.measure import regionprops, regionprops_table
 from skimage.segmentation import watershed
 from sklearn.preprocessing import MinMaxScaler
 from scipy import ndimage as ndi
@@ -37,8 +37,9 @@ img_test = "./assets/public_data/Particle Analysis - Test2.tif"
 # ---- Functions ----
 
 @st.cache_data(show_spinner=False)
-def open_img(path):
-	return Image.open(path)
+def open_img(img_file):
+	img = Image.open(img_file)
+	return img
 
 def main():
 
@@ -50,7 +51,6 @@ def main():
 
 	with st.expander("Setup", expanded=True):
 		img_file = st.file_uploader("Upload Image", type=FILETYPES_IMG, label_visibility="collapsed", on_change=sci_image.new_canvas_key)
-
 		if not img_file:
 			img_file = img_test
 		img_original = open_img(img_file)
@@ -65,6 +65,8 @@ def main():
 		crop_and_calibrate = sci_image.crop_and_calibrate(
 			img_original, initial_roi_pos, initial_scalebar_pos, initial_scalebar_length, initial_scalebar_units)
 		# Extract the output of the crop and calibrate function
+		if not crop_and_calibrate:
+			st.stop()
 		img_cropped = crop_and_calibrate['img_cropped']
 		scalebar_length = crop_and_calibrate['scalebar_length']
 		scalebar_units = crop_and_calibrate['scalebar_units']
@@ -186,45 +188,146 @@ def main():
 		st.error("No particles detected")
 		return None
 
-	properties = [
+	show_properties = [
 		'area', 'equivalent_diameter_area', 'perimeter',
 		'major_axis_length', 'minor_axis_length',
 		'solidity', 'eccentricity']
+	hide_properties = ['label', 'coords', 'bbox']
+	
+	properties = hide_properties + show_properties
 
-	df_particles = pd.DataFrame(columns=properties)
+	df_regions = pd.DataFrame(columns=properties)
 	for region in regions:
-		df_particles = pd.concat([df_particles, pd.DataFrame([[getattr(region, prop) for prop in properties]], columns=properties)], ignore_index=True)
-	
+		row = {}
+		for prop in properties:
+			if prop == 'coords':
+				row[prop] = region.coords.tolist()
+			elif prop == 'bbox':
+				row[prop] = region.bbox
+			else:
+				row[prop] = getattr(region, prop)
+		df_regions = df_regions.append(row, ignore_index=True)
+
 	with st.expander("Particle Data"):
-		st.dataframe(df_particles, use_container_width=True)
+		st.dataframe(df_regions, use_container_width=True)
 
+	with st.expander("Data Visualization", expanded=True):
+		st.markdown("### Settings")
+
+		# Scale properties to range 0-1
+		scaler = MinMaxScaler()
+		df_regions_scaled = pd.DataFrame(scaler.fit_transform(df_regions[show_properties]), columns=show_properties)
+		# add back in the hide properties
+		df_regions_scaled = pd.concat([df_regions[hide_properties], df_regions_scaled], axis=1)
+
+		col_copy_particles_from, col_variable_1, col_variable_2 = st.columns(3)
+		with col_copy_particles_from:
+			copy_particles_from = st.selectbox("Particles From", processed_images.keys(), index=len(processed_images)-1)
+			img_copy_particles_from = processed_images[copy_particles_from]
+		with col_variable_1:
+			variable_1 = st.selectbox("Variable 1", show_properties, index=0)
+		with col_variable_2:
+			variable_2 = st.selectbox("Variable 2", show_properties, index=len(show_properties)-1)
+
+		# Sort particles by variable 1 and 2
+		df_regions_sorted = df_regions_scaled.sort_values(by=[variable_1, variable_2])
+		
+		st.markdown("<hr>", unsafe_allow_html=True)
+		# col_l, col_c, col_r = st.columns([1,4,1])
+		# with col_c:
+		# tab_particle_grid,\
+		# tab_particles_as_markers,\
+		# tab_plot_data,\
+		# tab_histogram,\
+		# 	= st.tabs(["Particle grid", "Particles as Markers", "Plot Data", "Histogram"])
+
+		data_visualization_selection = st.selectbox("Data Visualization Selection", ["Particle Grid", "Particle Plot", "Plot Data", "Histogram"], index=0)
+		
+		# with tab_particle_grid:
+		if data_visualization_selection == "Particle Grid":
+			img_grid_particles = regions_to_grid(img_copy_particles_from, df_regions_sorted)
+
+			# Display grid of particles
+			st.image(img_grid_particles, use_column_width=True, clamp=True)
+
+		# with tab_particles_as_markers:
+		elif data_visualization_selection == "Particle Plot":
+			img_plot_particles = regions_to_plot(img_copy_particles_from, df_regions_sorted, variable_1, variable_2)
+			st.image(img_plot_particles, use_column_width=True, clamp=True)
+			# # Plot particle data as scatter plot where points are particles and x and y axis are properties
+			# # Create new image
+			# img_plot_particles = np.zeros_like(img_copy_particles_from)
+			# # Triple the size of the image to make room for overlapping particles
+			# img_plot_particles = cv2.resize(img_plot_particles, (img_plot_particles.shape[1]*3, img_plot_particles.shape[0]*3))
+
+			# # Paste each particle into new image at the position based on its properties
+			# for region_info, (scaled_x, scaled_y) in zip(regions, zip(df_regions_sorted[variable_1], df_regions_sorted[variable_2])):
+			# 	# Extract particle from original image within the bounding box
+			# 	minr, minc, maxr, maxc = region_info['bbox']
+			# 	particle_bbox = processed_images[copy_particles_from][minr:maxr, minc:maxc].copy()
+
+			# 	# Create a mask for the particle within the bounding box
+			# 	bbox_coords = region_info['coords'] - [minr, minc]
+			# 	mask = np.zeros_like(particle_bbox, dtype=bool)
+			# 	mask[bbox_coords[:, 0], bbox_coords[:, 1]] = True
+
+			# 	# Apply the mask to the bounding box to isolate the particle
+			# 	particle = np.where(mask, particle_bbox, 0)
+				
+			# 	# Get particle size
+			# 	try:
+			# 		particle_height, particle_width = particle.shape
+			# 	except:
+			# 		particle_height, particle_width, _ = particle.shape
+
+			# 	# Calculate position in new image based on properties
+			# 	x_start = int(scaled_x * (img_plot_particles.shape[1] - particle_width))
+			# 	y_start = int(scaled_y * (img_plot_particles.shape[0] - particle_height))
+
+			# 	# Invert y-axis
+			# 	y_start = img_plot_particles.shape[0] - y_start - particle_height
+				
+			# 	# Paste particle into new image without background
+			# 	img_plot_particles[y_start:y_start+particle_height, x_start:x_start+particle_width] = np.where(particle, particle, img_plot_particles[y_start:y_start+particle_height, x_start:x_start+particle_width])
+				
+		# with tab_plot_data:
+		elif data_visualization_selection == "Plot Data":
+			fig = go.Figure()
+			fig.update_layout(
+				xaxis_title=variable_1,
+				yaxis_title=variable_2,
+			)
+			fig.add_trace(go.Scatter(x=df_regions[variable_1], y=df_regions[variable_2], mode='markers'))
+			st.plotly_chart(fig, use_container_width=True)
+
+		# with tab_histogram:
+		elif data_visualization_selection == "Histogram":
+			fig = go.Figure()
+			fig.update_layout(
+				xaxis_title=variable_1,
+				yaxis_title="Count",
+			)
+			fig.add_trace(go.Histogram(x=df_regions[variable_1]))
+			st.plotly_chart(fig, use_container_width=True)
+
+@st.cache_data()
+def regions_to_plot(img: Image, df_regions: pd.DataFrame, variable_1: str, variable_2: str):
 	# Plot particle data as scatter plot where points are particles and x and y axis are properties
-	col_copy_particles_from, col_x_axis, col_y_axis = st.columns(3)
-	with col_copy_particles_from:
-		copy_particles_from = st.selectbox("Particles From", processed_images.keys(), index=len(processed_images)-1)
-		img_copy_particles_from = processed_images[copy_particles_from]
-	with col_x_axis:
-		x_axis = st.selectbox("X-Axis", properties, index=0)
-	with col_y_axis:
-		y_axis = st.selectbox("Y-Axis", properties, index=len(properties)-1)
-
 	# Create new image
-	new_image = np.zeros_like(img_copy_particles_from)
+	img_plot_particles = np.zeros_like(img)
 	# Triple the size of the image to make room for overlapping particles
-	new_image = cv2.resize(new_image, (new_image.shape[1]*3, new_image.shape[0]*3))
-	
-	# Scale properties to range 0-1
-	scaler = MinMaxScaler()
-	df_particles_scaled = pd.DataFrame(scaler.fit_transform(df_particles), columns=df_particles.columns)
+	img_plot_particles = cv2.resize(img_plot_particles, (img_plot_particles.shape[1]*3, img_plot_particles.shape[0]*3))
 
 	# Paste each particle into new image at the position based on its properties
-	for region_info, (scaled_x, scaled_y) in zip(regions, zip(df_particles_scaled[x_axis], df_particles_scaled[y_axis])):
+	for _, region in df_regions.iterrows():
+		scaled_x = region[variable_1]
+		scaled_y = region[variable_2]
 		# Extract particle from original image within the bounding box
-		minr, minc, maxr, maxc = region_info['bbox']
-		particle_bbox = processed_images[copy_particles_from][minr:maxr, minc:maxc].copy()
+		minr, minc, maxr, maxc = region['bbox']
+		particle_bbox = img[minr:maxr, minc:maxc].copy()
 
 		# Create a mask for the particle within the bounding box
-		bbox_coords = region_info['coords'] - [minr, minc]
+		bbox_coords = np.array(region['coords']) - [minr, minc]
 		mask = np.zeros_like(particle_bbox, dtype=bool)
 		mask[bbox_coords[:, 0], bbox_coords[:, 1]] = True
 
@@ -238,38 +341,66 @@ def main():
 			particle_height, particle_width, _ = particle.shape
 
 		# Calculate position in new image based on properties
-		x_start = int(scaled_x * (new_image.shape[1] - particle_width))
-		y_start = int(scaled_y * (new_image.shape[0] - particle_height))
+		x_start = int(scaled_x * (img_plot_particles.shape[1] - particle_width))
+		y_start = int(scaled_y * (img_plot_particles.shape[0] - particle_height))
 
 		# Invert y-axis
-		y_start = new_image.shape[0] - y_start - particle_height
+		y_start = img_plot_particles.shape[0] - y_start - particle_height
 		
 		# Paste particle into new image without background
-		new_image[y_start:y_start+particle_height, x_start:x_start+particle_width] = np.where(particle, particle, new_image[y_start:y_start+particle_height, x_start:x_start+particle_width])
+		img_plot_particles[y_start:y_start+particle_height, x_start:x_start+particle_width] = np.where(particle, particle, img_plot_particles[y_start:y_start+particle_height, x_start:x_start+particle_width])
 		
+	return img_plot_particles
 
-	# col_l, col_c, col_r = st.columns([1,4,1])
-	# with col_c:
-	tab_particles_as_markers, tab_plot_data, tab_histogram  = st.tabs(["Particles as Markers", "Plot Data", "Histogram"])
-	with tab_particles_as_markers:
-		st.image(new_image, use_column_width=True, clamp=True)
-	with tab_plot_data:
-		fig = go.Figure()
-		fig.update_layout(
-			xaxis_title=x_axis,
-			yaxis_title=y_axis,
-		)
-		fig.add_trace(go.Scatter(x=df_particles[x_axis], y=df_particles[y_axis], mode='markers'))
-		st.plotly_chart(fig, use_container_width=True)
-	with tab_histogram:
-		fig = go.Figure()
-		fig.update_layout(
-			xaxis_title=x_axis,
-			yaxis_title="Count",
-		)
-		fig.add_trace(go.Histogram(x=df_particles[x_axis]))
-		st.plotly_chart(fig, use_container_width=True)
+@st.cache_data()
+def regions_to_grid(img: Image, df_regions: pd.DataFrame):
+	# Get max width and height of bounding boxes from df_regions['bbox']
+	max_bbox_width = int(df_regions['bbox'].apply(lambda bbox: bbox[2] - bbox[0]).max())
+	max_bbox_height = int(df_regions['bbox'].apply(lambda bbox: bbox[3] - bbox[1]).max())
+	# max_bbox_width = max([region['bbox'][2] - region['bbox'][0] for region in regions])
+	# max_bbox_height = max([region['bbox'][3] - region['bbox'][1] for region in regions])
+	# Calculate number of rows and columns
+	# n_rows = int(np.ceil(np.sqrt(len(regions)))) + 1
+	# n_cols = int(np.ceil(len(regions) / n_rows)) + 1
+	n_cols = 10
+	n_rows = int(np.ceil(len(df_regions) / n_cols)) + 1
+	# Create blank image to paste particles into allowing space for label under each particle
+	img_grid_particles = np.zeros((n_rows * (max_bbox_height + 20), n_cols * max_bbox_width, 4))
+
+	# Iterate over regions in df_regions
+	i = 0
+	for _, region in df_regions.iterrows():
+		# Calculate row and column of particle
+		row = i // n_cols
+		col = i % n_cols
+		# Extract particle from original image within the bounding box
+		minr, minc, maxr, maxc = region['bbox']
+		particle_bbox = img[minr:maxr, minc:maxc]
+		# Create a mask for the particle within the bounding box
+		bbox_coords = np.array(region['coords']) - [minr, minc]
+		mask = np.zeros_like(particle_bbox, dtype=bool)
+		mask[bbox_coords[:, 0], bbox_coords[:, 1]] = True
+		# Apply the mask to the bounding box to isolate the particle
+		particle = np.where(mask, particle_bbox, 0)
 		
+		# Paste particle into center of grid cell
+		cell_center_x = col * max_bbox_width + max_bbox_width // 2
+		cell_center_y = row * (max_bbox_height + 20) + max_bbox_height // 2
+		x1 = cell_center_x - particle.shape[1] // 2
+		x2 = x1 + particle.shape[1]
+		y1 = cell_center_y - particle.shape[0] // 2
+		y2 = y1 + particle.shape[0]
+		img_grid_particles[y1:y2, x1:x2] = particle
+
+		# Add label centered at bottom of grid cell
+		label = str(region['label'])
+		label_width, label_height = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.75, 1)[0]
+		label_x = cell_center_x - label_width // 2
+		label_y = (row + 1) * (max_bbox_height + 20) - label_height // 2
+		cv2.putText(img_grid_particles, label, (label_x, label_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255, 255), 1, cv2.LINE_AA)
+		i += 1
+
+	return img_grid_particles
 
 if __name__ == "__main__":
 	main()
