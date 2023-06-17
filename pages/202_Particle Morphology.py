@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import imutils
 from uuid import uuid4
+import time
 
 import plotly.graph_objects as go
 
@@ -14,9 +15,14 @@ from skimage import measure, morphology, segmentation
 from skimage.color import label2rgb
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops, regionprops_table
-from skimage.segmentation import watershed
+from skimage.segmentation import watershed, felzenszwalb
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.cluster import spectral_clustering
 from scipy import ndimage as ndi
+
+import porespy as ps
+from porespy.filters import find_peaks, trim_saddle_points, trim_nearby_peaks
+from porespy.tools import randomize_colors
 
 
 import os
@@ -64,12 +70,15 @@ def main():
 		# Perform cropping and calibration on original image
 		crop_and_calibrate = sci_image.crop_and_calibrate(
 			img_original, initial_roi_pos, initial_scalebar_pos, initial_scalebar_length, initial_scalebar_units)
+		if not crop_and_calibrate:
+			time.sleep(1)
+			return None
 		# Extract the output of the crop and calibrate function
-		img_cropped = crop_and_calibrate['img_cropped']
-		scalebar_length = crop_and_calibrate['scalebar_length']
-		scalebar_units = crop_and_calibrate['scalebar_units']
-		scalebar_length_px = crop_and_calibrate['scalebar_length_px']
-		scalefactor = crop_and_calibrate['scalefactor']
+		# img_cropped = crop_and_calibrate['img_cropped']
+		# scalebar_length = crop_and_calibrate['scalebar_length']
+		# scalebar_units = crop_and_calibrate['scalebar_units']
+		# scalebar_length_px = crop_and_calibrate['scalebar_length_px']
+		# scalefactor = crop_and_calibrate['scalefactor']
 
 	with st.expander("Process", expanded=True):
 		col_process_img, col_process_settings = st.columns([3, 1])
@@ -81,7 +90,14 @@ def main():
 			gaussian_kernel = st.slider("Gaussian Blur Kernel", 1, 100, 3, 2)
 			threshold_value = st.slider("Threshold Value", 0, 255, 90, 1)
 			threshold_histogram = st.container()
-			particle_detection_method = st.selectbox("Particle Detection Method", ["Segmentation", "Watershed"])
+			particle_detection_method = st.selectbox("Particle Detection Method",
+					    [
+						    # "Felzenszwalb",
+							# "Spectral Clustering",
+							"Watershed (Snow)",
+							"Watershed",
+							"Connected Regions",
+							])
 			remove_border_particles = st.checkbox("Remove Border Particles", value=True)
 			# min_particle_area, max_particle_area = st.slider("Particle Area", 0, 10000, (10, 10000), 1)
 			
@@ -137,23 +153,56 @@ def main():
 		processed_images['Threshold'] = cv2.cvtColor(img_processed, cv2.COLOR_GRAY2RGBA)
 
 		# Apply particle detection method
-		if  particle_detection_method == "Segmentation":
+		if  particle_detection_method == "Connected Regions":
 			# Apply segmentation
 			label_img = measure.label(img_processed)
 
+		# elif particle_detection_method == "Felzenszwalb":
+		# 	# Apply Felzenszwalb segmentation
+		# 	label_img = segmentation.felzenszwalb(img_processed, scale=100, sigma=0.5, min_size=50)
+
+		# elif particle_detection_method == "Spectral Clustering":
+		# 	# Apply spectral clustering
+		# 	label_img = spectral_clustering(img_processed, n_clusters=100, eigen_solver='arpack')
+
 		elif particle_detection_method == "Watershed":
 			# Calculate distance transform
-			distance = ndi.distance_transform_edt(img_processed)
+			dist_transform = ndi.distance_transform_edt(img_processed)
 			# Save normalized distance
-			processed_images['Watershed - Distance'] = (distance / (distance.max() - distance.min()) * 255).astype(np.uint8)
+			processed_images['Watershed - Distance'] = (dist_transform / (dist_transform.max() - dist_transform.min()) * 255).astype(np.uint8)
 			# Find local maxima in the distance image
-			max_coords = peak_local_max(distance, labels=img_processed, footprint=np.ones((3, 3)))
-			local_maxima = np.zeros_like(img_processed, dtype=bool)
-			local_maxima[tuple(max_coords.T)] = True
+			local_maxima = peak_local_max(dist_transform, indices=False, labels=img_processed, footprint=np.ones((3, 3)))
+			# local_maxima = np.zeros_like(img_processed, dtype=bool)
+			# local_maxima[tuple(max_coords.T)] = True
 			markers = ndi.label(local_maxima)[0]
+			# markers = measure.label(max_coords)
 			# Apply watershed
-			label_img = watershed(-distance, markers, mask=img_processed)
+			label_img = watershed(-dist_transform, markers, mask=img_processed)
+
+			# kernel = np.ones((3,3),np.uint8)
+			# opening = cv2.morphologyEx(img_processed, cv2.MORPH_OPEN,kernel, iterations = 2)
+			# sure_bg = cv2.dilate(opening,kernel,iterations=3)
+			# dist_transform = cv2.distanceTransform(opening,cv2.DIST_L2,5)
+			# processed_images['Watershed - Distance'] = cv2.cvtColor((dist_transform / (dist_transform.max() - dist_transform.min()) * 255).astype(np.uint8), cv2.COLOR_GRAY2RGBA)
+			# ret, sure_fg = cv2.threshold(dist_transform,0.7*dist_transform.max(),255,0)
+			# processed_images['Watershed - Threshold'] = cv2.cvtColor(sure_fg, cv2.COLOR_GRAY2RGBA)
+			# sure_fg = np.uint8(sure_fg)
+			# unknown = cv2.subtract(sure_bg,sure_fg)
+			# ret, markers = cv2.connectedComponents(sure_fg)
+			# markers = markers+1
+			# markers[unknown==255] = 0
+			# label_img = watershed(-dist_transform, markers, mask=img_processed)
 		
+		elif particle_detection_method == "Watershed (Snow)":
+			watershed_snow = ps.filters.snow_partitioning(img_processed, r_max=4, sigma=0.4)
+			processed_images['Watershed (Snow) - Distance'] = cv2.cvtColor((watershed_snow.dt / (watershed_snow.dt.max() - watershed_snow.dt.min()) * 255).astype(np.uint8), cv2.COLOR_GRAY2RGBA)
+			label_img = watershed_snow.regions
+
+
+
+
+
+
 		# Remove small particles
 		label_img = morphology.remove_small_objects(label_img, min_size=10)
 
@@ -166,12 +215,11 @@ def main():
 		img_label_overlay = np.dstack((img_label_overlay, alpha))
 		processed_images[particle_detection_method] = img_label_overlay.copy()
 
-
 		# ---- Display processed images ----
 
 		with col_process_img:
 			processed_image_selection = st.selectbox("View Processed Image", processed_images.keys(), index=len(processed_images)-1, label_visibility="collapsed")
-			st.image(processed_images[processed_image_selection], use_column_width=True)
+			st.image(processed_images[processed_image_selection], use_column_width=True, clamp=True)
 	
 
 	# ---- Particle Analysis ----
@@ -270,17 +318,15 @@ def main():
 			st.plotly_chart(fig, use_container_width=True)
 
 
-			import matplotlib.pyplot as plt
-			from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-			fig, ax = plt.subplots()
+			# import matplotlib.pyplot as plt
+			# from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+			# fig, ax = plt.subplots()
 
-			for x0, y0, img in zip(df_regions[variable_1], df_regions[variable_2], img_copy_particles_from[:50, :50, :]):
-				ab = AnnotationBbox(OffsetImage(img, zoom=0.1), (x0, y0), frameon=False)
-				ax.add_artist(ab)
+			# for x0, y0, img in zip(df_regions[variable_1], df_regions[variable_2], img_copy_particles_from[:50, :50, :]):
+			# 	ab = AnnotationBbox(OffsetImage(img, zoom=0.1), (x0, y0), frameon=False)
+			# 	ax.add_artist(ab)
 				
 			st.pyplot(fig)
-
-
 
 		# with tab_histogram:
 		elif data_visualization_selection == "Histogram":
@@ -291,6 +337,7 @@ def main():
 			)
 			fig.add_trace(go.Histogram(x=df_regions[variable_1]))
 			st.plotly_chart(fig, use_container_width=True)
+
 
 @st.cache_data()
 def regions_to_plot(img: Image, df_regions: pd.DataFrame, variable_1: str, variable_2: str):
@@ -368,8 +415,10 @@ def regions_to_grid(img: Image, df_regions: pd.DataFrame):
 		x2 = x1 + particle.shape[1]
 		y1 = cell_center_y - particle.shape[0] // 2
 		y2 = y1 + particle.shape[0]
-		img_grid_particles[y1:y2, x1:x2] = particle
-
+		try:
+			img_grid_particles[y1:y2, x1:x2] = particle
+		except:
+			continue
 		# Add label centered at bottom of grid cell
 		label = str(region['label'])
 		label_width, label_height = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.75, 1)[0]
