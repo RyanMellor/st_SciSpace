@@ -130,10 +130,6 @@ def main():
 				showticklabels=False,
 				visible=False
 			),
-			# xaxis=dict(
-			# 	showticklabels=False,
-			# 	visible=False
-			# ),
 		))
 		threshold_histogram.plotly_chart(fig, use_container_width=True)
 		_, img_processed = cv2.threshold(img_processed, threshold_value, 255, cv2.THRESH_BINARY)
@@ -205,9 +201,21 @@ def main():
 			else:
 				row[prop] = getattr(region, prop)
 		df_regions = df_regions.append(row, ignore_index=True)
+	df_regions = df_regions.astype({'area': float})
+
+	# for each region, extract the particle mask
+	# particle_masks = []
+	# for region in regions:
+	# 	particle_mask = np.zeros_like(img_processed, dtype=bool)
+	# 	particle_mask[tuple(region.coords.T)] = True
+	# 	particle_masks.append(particle_mask)
+	# 	df_regions.loc[df_regions['label'] == region.label, 'mask'] = [particle_mask]
 
 	with st.expander("Particle Data"):
-		st.dataframe(df_regions, use_container_width=True)
+		st.markdown("### Raw Data")
+		st.dataframe(df_regions[show_properties], use_container_width=True)
+		st.markdown("### Statistics")
+		st.dataframe(df_regions[show_properties].describe(percentiles=[0.1, 0.5, 0.9]), use_container_width=True)
 
 	with st.expander("Data Visualization", expanded=True):
 		st.markdown("### Settings")
@@ -244,50 +252,13 @@ def main():
 		# with tab_particle_grid:
 		if data_visualization_selection == "Particle Grid":
 			img_grid_particles = regions_to_grid(img_copy_particles_from, df_regions_sorted)
-
-			# Display grid of particles
 			st.image(img_grid_particles, use_column_width=True, clamp=True)
 
 		# with tab_particles_as_markers:
 		elif data_visualization_selection == "Particle Plot":
 			img_plot_particles = regions_to_plot(img_copy_particles_from, df_regions_sorted, variable_1, variable_2)
 			st.image(img_plot_particles, use_column_width=True, clamp=True)
-			# # Plot particle data as scatter plot where points are particles and x and y axis are properties
-			# # Create new image
-			# img_plot_particles = np.zeros_like(img_copy_particles_from)
-			# # Triple the size of the image to make room for overlapping particles
-			# img_plot_particles = cv2.resize(img_plot_particles, (img_plot_particles.shape[1]*3, img_plot_particles.shape[0]*3))
-
-			# # Paste each particle into new image at the position based on its properties
-			# for region_info, (scaled_x, scaled_y) in zip(regions, zip(df_regions_sorted[variable_1], df_regions_sorted[variable_2])):
-			# 	# Extract particle from original image within the bounding box
-			# 	minr, minc, maxr, maxc = region_info['bbox']
-			# 	particle_bbox = processed_images[copy_particles_from][minr:maxr, minc:maxc].copy()
-
-			# 	# Create a mask for the particle within the bounding box
-			# 	bbox_coords = region_info['coords'] - [minr, minc]
-			# 	mask = np.zeros_like(particle_bbox, dtype=bool)
-			# 	mask[bbox_coords[:, 0], bbox_coords[:, 1]] = True
-
-			# 	# Apply the mask to the bounding box to isolate the particle
-			# 	particle = np.where(mask, particle_bbox, 0)
-				
-			# 	# Get particle size
-			# 	try:
-			# 		particle_height, particle_width = particle.shape
-			# 	except:
-			# 		particle_height, particle_width, _ = particle.shape
-
-			# 	# Calculate position in new image based on properties
-			# 	x_start = int(scaled_x * (img_plot_particles.shape[1] - particle_width))
-			# 	y_start = int(scaled_y * (img_plot_particles.shape[0] - particle_height))
-
-			# 	# Invert y-axis
-			# 	y_start = img_plot_particles.shape[0] - y_start - particle_height
-				
-			# 	# Paste particle into new image without background
-			# 	img_plot_particles[y_start:y_start+particle_height, x_start:x_start+particle_width] = np.where(particle, particle, img_plot_particles[y_start:y_start+particle_height, x_start:x_start+particle_width])
-				
+			
 		# with tab_plot_data:
 		elif data_visualization_selection == "Plot Data":
 			fig = go.Figure()
@@ -297,6 +268,19 @@ def main():
 			)
 			fig.add_trace(go.Scatter(x=df_regions[variable_1], y=df_regions[variable_2], mode='markers'))
 			st.plotly_chart(fig, use_container_width=True)
+
+
+			import matplotlib.pyplot as plt
+			from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+			fig, ax = plt.subplots()
+
+			for x0, y0, img in zip(df_regions[variable_1], df_regions[variable_2], img_copy_particles_from[:50, :50, :]):
+				ab = AnnotationBbox(OffsetImage(img, zoom=0.1), (x0, y0), frameon=False)
+				ax.add_artist(ab)
+				
+			st.pyplot(fig)
+
+
 
 		# with tab_histogram:
 		elif data_visualization_selection == "Histogram":
@@ -355,11 +339,7 @@ def regions_to_grid(img: Image, df_regions: pd.DataFrame):
 	# Get max width and height of bounding boxes from df_regions['bbox']
 	max_bbox_width = int(df_regions['bbox'].apply(lambda bbox: bbox[2] - bbox[0]).max())
 	max_bbox_height = int(df_regions['bbox'].apply(lambda bbox: bbox[3] - bbox[1]).max())
-	# max_bbox_width = max([region['bbox'][2] - region['bbox'][0] for region in regions])
-	# max_bbox_height = max([region['bbox'][3] - region['bbox'][1] for region in regions])
 	# Calculate number of rows and columns
-	# n_rows = int(np.ceil(np.sqrt(len(regions)))) + 1
-	# n_cols = int(np.ceil(len(regions) / n_rows)) + 1
 	n_cols = 10
 	n_rows = int(np.ceil(len(df_regions) / n_cols)) + 1
 	# Create blank image to paste particles into allowing space for label under each particle
