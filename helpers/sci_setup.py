@@ -34,6 +34,7 @@ def setup_page(page_title):
             thead tr th:first-child {display:none}
             tbody th {display:none}
             [data-testid="stFileUploadDropzone"] {display:grid}
+            [data-testid="stSidebarNav"] ul {max-height:none}
         </style>
     """
     st.sidebar.markdown(page_setup, unsafe_allow_html=True,)
