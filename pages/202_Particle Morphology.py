@@ -334,6 +334,7 @@ def main():
 			df_regions = df_regions.append(row, ignore_index=True)
 		df_regions = df_regions.astype({'area': float})
 
+
 	# for each region, extract the particle mask
 	# particle_masks = []
 	# for region in regions:
@@ -349,6 +350,13 @@ def main():
 		st.dataframe(df_raw, use_container_width=True)
 		st.markdown("### Statistics")
 		st.dataframe(df_raw.describe(percentiles=[0.1, 0.5, 0.9]), use_container_width=True)
+
+	if len(df_regions) >= 100:
+		show_all_particles = st.button("Show all particles")
+		if not show_all_particles:
+			st.warning("More than 100 particles detected. Showing first 100 particles.")
+			df_regions = df_regions.head(100)
+	df_regions
 
 	with st.expander("Data Visualization", expanded=True):
 		st.markdown("### Settings")
