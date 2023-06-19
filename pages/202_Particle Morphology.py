@@ -499,7 +499,7 @@ def make_grid(rows,cols):
             grid[i] = st.columns(cols)
     return grid
 
-# @st.cache_data()
+@st.cache_data()
 def regions_to_grid(img: Image, df_regions: pd.DataFrame):
 	# Get max width and height of bounding boxes from df_regions['bbox']
 	# df_regions['bbox_width'] = df_regions['bbox'].apply(lambda bbox: bbox[3] - bbox[1])
