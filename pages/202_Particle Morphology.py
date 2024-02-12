@@ -24,13 +24,13 @@ import porespy as ps
 import os
 os.environ["OMP_NUM_THREADS"] = '1'
 
-from helpers import sci_setup, sci_data, sci_image
+from helpers import sci_setup, sci_data, sci_image, sci_utils
 sci_setup.setup_page("Particle Morphology")
 
 import warnings
 warnings.filterwarnings('ignore')
 
-FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
+FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'jfif']
 PRIMARY_COLOR = "#4589ff"
 
 img_test = "./assets/public_data/Particle Analysis - Test2.tif"
@@ -94,10 +94,11 @@ def main():
 				apply_threshold = False
 			apply_invert = st.checkbox("Invert Image", value=True, help="Image processing requires light particles on a dark background.")
 			if apply_gaussian_blur:
-				gaussian_kernel = st.slider("Gaussian Blur Kernel", 1, 100, 7, 2)
+				gaussian_kernel = st.slider("Gaussian Blur Kernel", 1, 21, 7, 2)
 			if apply_threshold:
 				threshold_value = st.slider("Threshold Value", 0, 255, 90, 1)
 				threshold_histogram = st.container()
+
 			if particle_detection_method == "Hough Circles":
 				hough_dp = st.slider("DP", min_value=1.0, max_value=2.0, value=1.2,
 					help="Inverse ratio of the accumulator resolution to the image resolution.")
@@ -113,7 +114,6 @@ def main():
 
 				# diameter_val = st.slider(f"Diameter ({scalebar_units})", min_value=1, max_value=500, value=(10,300),
 				# 	help="Minimum and maximum circle diameter.")
-
 				hough_min_dist = st.number_input(
 					f"Min distance ({scalebar_units})",
 					min_value=float(scalebar_length/1000),
@@ -134,6 +134,10 @@ def main():
 					max_value=float(scalebar_length*1000),
 					value=float(scalebar_length),
 					help="Maximum circle diameter.")
+				
+			elif particle_detection_method == "Watershed (SNOW)":
+				snow_r_max = st.slider("R Max", 1, 20, 4, 1)
+				snow_sigma = st.slider("Sigma", 0.0, 1.0, 0.4, 0.1)
 				
 			remove_border_particles = st.checkbox("Remove Border Particles", value=True)
 			# min_particle_area, max_particle_area = st.slider("Particle Area", 0, 10000, (10, 10000), 1)
@@ -193,7 +197,7 @@ def main():
 		# Apply particle detection method
 		if particle_detection_method == "Watershed (SNOW)":
 			# Apply watershed segmentation using SNOW algorithm
-			watershed_snow = ps.filters.snow_partitioning(img_processed, r_max=4, sigma=0.4)
+			watershed_snow = ps.filters.snow_partitioning(img_processed, r_max=snow_r_max, sigma=snow_sigma)
 			processed_images['Distance transform'] = cv2.cvtColor((watershed_snow.dt / (watershed_snow.dt.max() - watershed_snow.dt.min()) * 255).astype(np.uint8), cv2.COLOR_GRAY2RGBA)
 			label_img = watershed_snow.regions
 		
@@ -333,6 +337,11 @@ def main():
 					row[prop] = getattr(region, prop)
 			df_regions = df_regions.append(row, ignore_index=True)
 		df_regions = df_regions.astype({'area': float})
+
+		for col in [
+			'area', 'equivalent_diameter_area', 'perimeter',
+			'major_axis_length', 'minor_axis_length']:
+			df_regions[col] = df_regions[col] * (scalefactor * scalebar_length/scalebar_length_px)
 
 
 	# for each region, extract the particle mask
@@ -505,12 +514,7 @@ def regions_to_plot(img: Image, df_regions: pd.DataFrame, variable_1: str, varia
 		
 	return img_plot_particles
 
-def make_grid(rows,cols):
-    grid = [0]*rows
-    for i in range(rows):
-        with st.container():
-            grid[i] = st.columns(cols)
-    return grid
+
 
 @st.cache_data()
 def regions_to_grid(img: Image, df_regions: pd.DataFrame):
@@ -523,7 +527,7 @@ def regions_to_grid(img: Image, df_regions: pd.DataFrame):
 	n_cols = 10
 	n_rows = int(np.ceil(len(df_regions) / n_cols))
 
-	grid = make_grid(n_rows, n_cols)
+	grid = sci_utils.make_grid(n_rows, n_cols)
 
 	# Create blank image to paste particles into allowing space for label under each particle
 	# img_grid_particles = np.zeros((n_rows * (max_bbox_height + 20), n_cols * max_bbox_width, 4))

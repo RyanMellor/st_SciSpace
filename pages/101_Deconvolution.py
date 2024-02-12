@@ -1,8 +1,8 @@
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
-from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, AgGridTheme
-from st_aggrid.grid_options_builder import GridOptionsBuilder
-from st_aggrid.shared import JsCode
+# from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, AgGridTheme
+# from st_aggrid.grid_options_builder import GridOptionsBuilder
+# from st_aggrid.shared import JsCode
 
 import json
 import numpy as np
@@ -14,7 +14,7 @@ from lmfit import models
 from sklearn.metrics import r2_score
 from scipy.signal import savgol_filter
 
-from helpers import sci_setup, sci_data
+from helpers import sci_setup, sci_data, sci_utils
 sci_setup.setup_page("Deconvolution")
 
 data_test = "./assets/public_data/Deconvolution - Data - Test1.xlsx"
@@ -22,35 +22,16 @@ model_test = "./assets/public_data/Deconvolution - Model - Test1.txt"
 
 PRIMARY_COLOR = "#4589ff"
 
-checkbox_renderer = JsCode("""
-	class CheckboxRenderer{
-
-		init(params) {
-			this.params = params;
-
-			this.eGui = document.createElement('input');
-			this.eGui.type = 'checkbox';
-			this.eGui.checked = params.value;
-
-			this.checkedHandler = this.checkedHandler.bind(this);
-			this.eGui.addEventListener('click', this.checkedHandler);
-		}
-
-		checkedHandler(e) {
-			let checked = e.target.checked;
-			let colId = this.params.column.colId;
-			this.params.node.setDataValue(colId, checked);
-		}
-
-		getGui(params) {
-			return this.eGui;
-		}
-
-		destroy(params) {
-		this.eGui.removeEventListener('click', this.checkedHandler);
-		}
-	}//end class
-	""")
+def sample_selection(samples:list):
+	selected = [False] * len(samples)
+	selected[0] = True
+	df = pd.DataFrame({'✔': selected, 'Samples': samples})
+	edited_df = st.data_editor(
+		df,
+		disabled=['Samples'],
+		hide_index=True,
+		use_container_width=True)
+	return edited_df[edited_df['✔']]['Samples'].tolist()
 
 def main():
 
@@ -70,30 +51,55 @@ def main():
 
 		df_data = sci_data.file_to_df(data_file, index_col=0)
 
-		samples = pd.DataFrame(columns=['samples'], data=df_data.columns)
 		col_dataselector, col_plotraw = st.columns([1, 3])
 
 		with col_dataselector:
-			ob_samples = GridOptionsBuilder.from_dataframe(samples)
-			ob_samples.configure_selection(selection_mode='multiple', use_checkbox=True, pre_selected_rows=[0])
-			ob_samples.configure_column('samples', suppressMenu=True, sortable=False)
-			ag_samples = AgGrid(samples,
-								ob_samples.build(),
-								height=600,
-								update_mode=GridUpdateMode.SELECTION_CHANGED,
-								theme=AgGridTheme.ALPINE)
-			selected_samples = [i['samples'] for i in ag_samples.selected_rows]
+			tab_selected_samples, tab_settings = st.tabs(['Select samples', 'Settings'])
+			with tab_selected_samples:
+				selected_samples = sample_selection(df_data.columns.tolist())
+			with tab_settings:
+
+				# setup axis labels
+				x_axis_title = st.text_input('X axis title', value='Wavelength')
+				x_axis_units = st.text_input('X axis units', value='nm')
+				y_axis_title = st.text_input('Y axis title', value='Absorbance')
+				y_axis_units = st.text_input('Y axis units', value='')
+				x_axis_label = f'{x_axis_title}' if x_axis_units == "" else f'{x_axis_title} ({x_axis_units})'
+				y_axis_label = f'{y_axis_title}' if y_axis_units == "" else f'{y_axis_title} ({y_axis_units})'
+
+				# apply data range
+				min_x = int(df_data.index.min())
+				max_x = int(df_data.index.max())
+				data_range = st.slider('Data range', min_value=min_x, max_value=max_x, value=(min_x, max_x))
+				df_data = df_data[df_data.index >= data_range[0]]
+				df_data = df_data[df_data.index <= data_range[1]]
+				x_data = np.array(df_data.index)
+
+				# apply savgol filter
+				sg_filter = st.checkbox('Apply Savitzky-Golay filter')
+				if sg_filter:
+					sg_filter_window = st.number_input('Savitzky-Golay filter window', min_value=1, max_value=100, value=11)
+					sg_filter_order = st.number_input('Savitzky-Golay filter order', min_value=1, max_value=10, value=2)
+					for s in df_data.columns:
+						try:
+							df_data[s] = savgol_filter(df_data[s], sg_filter_window, sg_filter_order)
+						except Exception as e:
+							st.error(e)
+							return None
 
 		with col_plotraw:
-			# TODO add options for labels to sidebar
-			fig_raw_data = px.line(df_data[selected_samples])
-			fig_raw_data.layout.template = 'plotly_dark'
-			fig_raw_data.layout.legend.traceorder = 'normal'
-			fig_raw_data.layout.margin = dict(l=20, r=20, t=20, b=20)
-			fig_raw_data.layout.xaxis.title.text = 'Wavelength (nm)'
-			fig_raw_data.layout.yaxis.title.text = 'Absorbance'
-			fig_raw_data.layout.legend.title.text = 'Sample'
-			st.plotly_chart(fig_raw_data, use_container_width=True)
+			fig = go.Figure()
+			for s in selected_samples:
+				fig.add_trace(go.Scatter(x=df_data.index, y=df_data[s], name=s))	
+			fig.update_layout(
+				template='plotly_dark',
+		    	legend=dict(traceorder='normal'),
+				margin=dict(l=20, r=20, t=20, b=20),
+				xaxis_title=x_axis_label,
+				yaxis_title=y_axis_label,
+				legend_title='Sample'
+				)
+			st.plotly_chart(fig, use_container_width=True)
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 
@@ -109,10 +115,10 @@ def main():
 			model_file = model_test
 		with open(model_file, 'r') as f:
 			deconvolution_setup = json.load(f)
-
 		df_deconvolution_setup = pd.DataFrame()
-		for f in deconvolution_setup:
+		for i, f in enumerate(deconvolution_setup):
 			data = {}
+			data['id'] = i + 1
 			data['feature'] = f['feature']
 			data['model'] = f['model']
 			data['color'] = f['color']
@@ -122,54 +128,82 @@ def main():
 				df_deconvolution_setup = pd.concat([df_deconvolution_setup, df])
 		df_deconvolution_setup.reset_index(drop=True, inplace=True)
 
-		# col_feature_setup, col_feature_parameters = st.columns([1,2])
-		# with col_feature_setup:
+		from lmfit.models import VoigtModel, GaussianModel, LorentzianModel, PseudoVoigtModel, ExponentialModel, LinearModel
+		built_in_models = {
+			'VoigtModel': VoigtModel,
+			'GaussianModel': GaussianModel,
+			'LorentzianModel': LorentzianModel,
+			'PseudoVoigtModel': PseudoVoigtModel,
+			# 'ExponentialModel': ExponentialModel,
+			# 'LinearModel': LinearModel
+		}
+
 		st.markdown("### Feature setup")
-		df_features = df_deconvolution_setup[['feature', 'model', 'color']].drop_duplicates()
-		ob_features = GridOptionsBuilder.from_dataframe(df_features)
-		ob_features.configure_column('feature', suppressMenu=True, sortable=False, editable=False)
-		ob_features.configure_column('model', suppressMenu=True, sortable=False, editable=False)
-		ob_features.configure_column('color', suppressMenu=True, sortable=False, editable=False)
-		ag_features = AgGrid(
+		df_features = df_deconvolution_setup[['id', 'feature', 'model', 'color']].drop_duplicates()
+		edited_df_features = st.data_editor(
 			df_features,
-			ob_features.build(),
-			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-			theme=AgGridTheme.ALPINE,
+			disabled=['id'],
+			hide_index=True,
+			num_rows="dynamic",
+			column_config={
+				'feature': st.column_config.TextColumn(),
+				'model': st.column_config.SelectboxColumn(
+					options=built_in_models.keys(),
+				),
+				'color': st.column_config.TextColumn(
+					help='Color of the feature in the plot. Use hex code or color name.',
+				),
+			}
 		)
+
+		# for f in edited_df_features.iterrows():
+		# 	# list the parameters of the model
+		# 	temp_model = built_in_models[f[1]['model']]()
+		# 	temp_parameters = temp_model.param_names
+		# 	st.markdown('---', unsafe_allow_html=True)
+		# 	st.markdown(f"Feature: {f[1]['feature']}")
+		# 	grid = sci_utils.make_grid(len(temp_parameters)+1, 5)
+		# 	grid[0][1].markdown(f"Value")
+		# 	grid[0][2].markdown(f"Min")
+		# 	grid[0][3].markdown(f"Max")
+		# 	grid[0][4].markdown(f"Vary")
+		# 	for i, p in enumerate(temp_parameters):
+		# 		grid[i+1][0].markdown(f"{p}")
+		# 		temp_value = grid[i+1][1].number_input(f"Value", value=0.0, key=f"{f[1]['id']}_{p}_value", label_visibility="collapsed")
+		# 		temp_min = grid[i+1][2].number_input(f"Min", value=0.0, key=f"{f[1]['id']}_{p}_min", label_visibility="collapsed")
+		# 		temp_max = grid[i+1][3].number_input(f"Max", value=0.0, key=f"{f[1]['id']}_{p}_max", label_visibility="collapsed")
+		# 		temp_vary = grid[i+1][4].checkbox(f"Vary", value=True, key=f"{f[1]['id']}_{p}_vary", label_visibility="collapsed")
+				
+		for f in edited_df_features.iterrows():
+			df_deconvolution_setup.loc[df_deconvolution_setup['id'] == f[1]['id'], 'feature'] = f[1]['feature']
+			df_deconvolution_setup.loc[df_deconvolution_setup['id'] == f[1]['id'], 'model'] = f[1]['model']
+			df_deconvolution_setup.loc[df_deconvolution_setup['id'] == f[1]['id'], 'color'] = f[1]['color']
+
+		show_colorpicker = st.checkbox("Show color picker")
+		if show_colorpicker:
+			col_colorpicker, col_nearestnamedcolor = st.columns([1, 4])
+			with col_colorpicker:
+				color_hex = st.color_picker("Color picker", "#6495ed")
+			with col_nearestnamedcolor:
+				nearest_named_color = sci_utils.nearest_named_color(color_hex)
+				st.markdown(f"""
+				Selected color: {color_hex}  
+				Nearest named color: {nearest_named_color[0]}  
+				Hex code: {nearest_named_color[1]}  
+				<span style='background-color:{nearest_named_color[1]};color:{nearest_named_color[1]}'>color</span>
+				""", unsafe_allow_html=True)
 
 		st.markdown("### Feature parameters")
-		ob_parameters = GridOptionsBuilder.from_dataframe(df_deconvolution_setup)
-		ob_parameters.configure_column('feature', suppressMenu=True, sortable=False)
-		ob_parameters.configure_column('model', hide=True)
-		ob_parameters.configure_column('color', hide=True)
-		ob_parameters.configure_column('parameter', suppressMenu=True, sortable=False)
-		ob_parameters.configure_column('value', suppressMenu=True, sortable=False, editable=False)
-		ob_parameters.configure_column('min', suppressMenu=True, sortable=False, editable=False)
-		ob_parameters.configure_column('max', suppressMenu=True, sortable=False, editable=False)
-		ob_parameters.configure_column('vary', suppressMenu=True, sortable=False, editable=False)#, cellRenderer=checkbox_renderer)
-		ag_parameters = AgGrid(
+		edited_df_parameters = st.data_editor(
 			df_deconvolution_setup,
-			ob_parameters.build(),
-			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-			theme=AgGridTheme.ALPINE,
-			allow_unsafe_jscode=True
-		)
+			disabled=['feature', 'model', 'color', 'parameter', ],
+			hide_index=True,
+			use_container_width=True)
 
-		# df_deconvolution_setup['feature'] = df_deconvolution_setup['feature'].astype("category")
-		# exp_df = st.experimental_data_editor(df_deconvolution_setup)
-
-	st.markdown("<hr/>", unsafe_allow_html=True)
-
-	st.markdown("### Output")
-
-	with st.expander("Deconvolution result", expanded=True):
-
-		# col_deconvolution_plot, col_deconvloution_values = st.columns([2,1])
-		# with col_deconvolution_plot:
+		st.markdown("### Model preview")
 		composite_model = None
 		params = None
-		# components = exp_df.groupby('feature')
-		components = ag_parameters.data.groupby('feature')
+		components = edited_df_parameters.groupby('feature')
 		for component in components:
 			name = component[0]
 			df = component[1]
@@ -194,20 +228,38 @@ def main():
 			else:
 				composite_model = composite_model + model
 
-		#TODO add options for data_range to sidebar
-		data_range = [400,1000]
-		df_data = df_data[df_data.index >= data_range[0]]
-		df_data = df_data[df_data.index <= data_range[1]]
-		x_data = np.array(df_data.index)
 		try:
 			y_data = np.array(df_data[selected_samples[0]])
 		except:
 			return None
+		
+		# evaluate the model with the initial parameters
+		initial_model = composite_model.eval(params, x=x_data)
+		# initial_params = composite_model.guess(y_data, x=x_data)
+		initial_comps = composite_model.eval_components(x=x_data)
+		r2 = r2_score(y_data, initial_model)
 
-		#TODO add options for savgol_filter to sidebar
-		perform_filter = True
-		if perform_filter:
-			y_data = savgol_filter(y_data, 11, 2)
+		fig_model_preview = go.Figure()
+		fig_model_preview.add_trace(go.Scatter(x=x_data, y=y_data, name='Data', line_color='silver'))
+		fig_model_preview.add_trace(go.Scatter(x=x_data, y=initial_model, name=f'Initial: R2={r2:.4f}', line_color='gold'))
+		for m in composite_model.components:
+			name = m.prefix[:-1]
+			df = df_deconvolution_setup[df_deconvolution_setup['feature']==name]
+			color = df.iloc[0]['color']
+			fig_model_preview.add_trace(go.Scatter(
+				x=x_data, y=m.eval(params, x=x_data), name=name, line_color=color))
+		# for name, comp_y_data in initial_comps.items():
+		# 	name = name[:-1]
+		# 	df = df_deconvolution_setup[df_deconvolution_setup['feature']==name]
+		# 	color = df.iloc[0]['color']
+		# 	fig_model_preview.add_trace(go.Scatter(x=x_data, y=comp_y_data, name=name, line_color=color))
+		st.plotly_chart(fig_model_preview, use_container_width=True)
+		
+	st.markdown("<hr/>", unsafe_allow_html=True)
+
+	st.markdown("### Output")
+
+	with st.expander("Deconvolution result", expanded=True):
 
 		output = composite_model.fit(y_data, params, x=x_data)
 		eval_components = output.eval_components(x=x_data)
@@ -223,23 +275,20 @@ def main():
 			df = df_deconvolution_setup[df_deconvolution_setup['feature']==name]
 			color = df.iloc[0]['color']
 			fig_deconvolution.add_trace(go.Scatter(x=x_data, y=y_data, name=name, line_color=color))
-
-		fig_deconvolution.layout.template = 'plotly_dark'
-		fig_deconvolution.layout.legend.traceorder = 'normal'
-		fig_deconvolution.layout.margin = dict(l=20, r=20, t=20, b=20)
-		fig_deconvolution.layout.xaxis.title.text = 'Wavelength (nm)'
-		fig_deconvolution.layout.yaxis.title.text = 'Absorbance'
+		fig_deconvolution.update_layout(
+			template='plotly_dark',
+			legend=dict(traceorder='normal'),
+			margin=dict(l=20, r=20, t=20, b=20),
+			xaxis_title=x_axis_label,
+			yaxis_title=y_axis_label,
+		)
 		st.plotly_chart(fig_deconvolution, use_container_width=True)
 
 	with st.expander("Best fit values"):
-		# with col_deconvloution_values:
-		# st.markdown("### Best fit values")
 		st.write("")
 		best_fit_values_df = pd.DataFrame().from_dict(output.best_values, orient='index')
 		best_fit_values_df.columns=['Value']
 		st.dataframe(best_fit_values_df)
-		# for key, val in output.best_values.items():
-		# 	st.write(key, round(val,2))
 
 	st.markdown("<hr/>", unsafe_allow_html=True)
 

@@ -24,7 +24,6 @@ PRIMARY_COLOR = "#4589ff"
 def map_data(data, inmin, inmax, outmin, outmax):
 	return outmin + (outmax - outmin)*(data - inmin) / (inmax - inmin)
 
-
 def lerp_gaps(data):
 	for i in range(len(data)):
 		if data[i]:
@@ -43,7 +42,6 @@ def lerp_gaps(data):
 			continue
 	return data
 
-
 def resize_img(img: Image, max_height: int = 600, max_width: int = 600):
 	# Resize the image to be a max of 600x600 by default.
 	ratio = 1
@@ -54,7 +52,6 @@ def resize_img(img: Image, max_height: int = 600, max_width: int = 600):
 		ratio = max_width / img.width
 		img = img.resize((int(img.width * ratio), int(img.height * ratio)))
 	return img, ratio
-
 
 def main():
 

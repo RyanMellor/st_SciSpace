@@ -6,7 +6,7 @@
         "parameters": [
             {
                 "parameter": "amplitude",
-                "value": 40,
+                "value": 30,
                 "min": 1,
                 "max": null,
                 "vary": true
@@ -20,7 +20,7 @@
             },
             {
                 "parameter": "sigma",
-                "value": 5,
+                "value": 30,
                 "min": null,
                 "max": 100,
                 "vary": true
@@ -41,14 +41,14 @@
             },
             {
                 "parameter": "center",
-                "value": 520,
+                "value": 550,
                 "min": 500,
                 "max": 650,
                 "vary": true
             },
             {
                 "parameter": "sigma",
-                "value": 20,
+                "value": 30,
                 "min": null,
                 "max": 100,
                 "vary": true
@@ -62,7 +62,7 @@
         "parameters": [
             {
                 "parameter": "amplitude",
-                "value": 1000,
+                "value": 1400,
                 "min": 1,
                 "max": null,
                 "vary": true
@@ -76,7 +76,7 @@
             },
             {
                 "parameter": "sigma",
-                "value": 500,
+                "value": 300,
                 "min": null,
                 "max": 800,
                 "vary": true

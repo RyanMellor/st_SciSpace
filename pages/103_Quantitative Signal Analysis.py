@@ -37,8 +37,6 @@ plot_layout = {
 	# "uirevision": "foo",
 	"height":300
 }
-def round_to_n(x, n):
-	return round(x, -int(floor(log10(abs(x)))) + (n - 1))
 
 def main():
 

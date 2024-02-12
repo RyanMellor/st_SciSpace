@@ -1,6 +1,6 @@
 import streamlit as st
-from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, AgGridTheme
-from st_aggrid.grid_options_builder import GridOptionsBuilder
+# from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, AgGridTheme
+# from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 import os
 import json
@@ -11,7 +11,6 @@ from pprint import pprint
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 import plotly.express as px
-from lmfit import models
 from sklearn.metrics import r2_score
 from sklearn.mixture import GaussianMixture
 from scipy.signal import savgol_filter
@@ -34,7 +33,7 @@ from sklearn.metrics import r2_score
 
 from collections import OrderedDict
 
-from lmfit import Parameters, Model
+from lmfit import Parameters, Model, models
 from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
 
 from helpers import sci_setup, sci_data

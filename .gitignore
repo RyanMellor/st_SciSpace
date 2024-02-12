@@ -1,6 +1,15 @@
+.streamlit/secrets.toml
 archive
 assets/private_data
+components
+
 pages/301_HPLC Method Development.py
 pages/900_~~Miscellaneous~~.py
-pages/999_Testing.py
 pages/901_Thermal Analysis.py
+pages/902_Molecular Dynamics.py
+pages/903_Microfluidics.py
+pages/990_Chat.py
+pages/991_Component.py
+pages/999_Testing.py
+
+chats.json

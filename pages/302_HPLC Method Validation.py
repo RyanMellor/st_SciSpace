@@ -25,7 +25,17 @@ import urllib.request
 import math
 import copy
 
-from helpers import sci_setup, sci_data
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle, ListStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.lib.utils import ImageReader
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, PageTemplate, Frame, Table, TableStyle, ListFlowable, ListItem
+from reportlab.platypus.flowables import HRFlowable, Spacer, PageBreak
+pdf_styles = getSampleStyleSheet()
+
+from helpers import sci_setup, sci_data, sci_report
 sci_setup.setup_page("HPLC Method Validation")
 
 data_test = './assets/public_data/HPLC Method Validation - Test1.xlsx'
@@ -55,6 +65,20 @@ plot_layout = {
 	"uirevision": "foo",
 	"height":400
 }
+
+# Create a PDF
+pdf_buffer = BytesIO()
+pdf_doc = SimpleDocTemplate(pdf_buffer)
+
+# Create a list of elements to add to the PDF
+pdf_elements = []
+hr = [Spacer(1, 10), HRFlowable(width="100%")]
+
+# Header
+pdf_elements.append(Paragraph("SciSpace", pdf_styles['Normal']))
+pdf_elements.append(Paragraph("HPLC Method Validation", pdf_styles['Heading1']))
+pdf_elements += hr
+
 
 def lerp_idx(series, idx):
     # frac, whole = math.modf(idx)
@@ -161,9 +185,6 @@ def main():
     with st.expander("Define analytes, system parameters, and upload raw data", expanded=True):
         st.markdown("<hr/>", unsafe_allow_html=True)
 
-        # col_analytes, col_system = st.columns([3, 2])
-
-        # with col_system:
         st.markdown("### System")
 
         system = [
@@ -172,35 +193,20 @@ def main():
                 'value': 0.65,
                 'units': 'min'
             },
-            # {
-            # 	'parameter': 'flow',
-            # 	'value': 1,
-            # 	'units': 'mL/min'
-            # },
+            {
+            	'parameter': 'flow rate',
+            	'value': 1.0,
+            	'units': 'mL/min'
+            },
         ]
 
         df_system = pd.DataFrame(system)
-        ob_system = GridOptionsBuilder.from_dataframe(df_system)
-        ob_system.configure_column(
-            'parameter', suppressMenu=True, sortable=False)
-        ob_system.configure_column(
-            'value', suppressMenu=True, sortable=False, editable=True)
-        ag_system = AgGrid(
+        df_system_edit = st.data_editor(
             df_system,
-            ob_system.build(),
-            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-            theme=AgGridTheme.ALPINE,
-            height = 100
-        )
-        system_temp = ag_system.data.to_dict('records')
-        system = {}
-        for i in system_temp:
-            p = i['parameter']
-            v = i['value']
-            u = i['units']
-            system[p] = {'value': v, 'units': u}
+            disabled=['parameter', 'units']
+            )
+        system = df_system_edit.to_dict('records')
 
-        # with col_analytes:
         st.markdown("### Analytes")
         analytes = [
             {
@@ -215,32 +221,13 @@ def main():
                 'to': 5.4,
                 'target': 200,
             },
-            {'analyte': ''},
-            {'analyte': ''},
-            {'analyte': ''},
-            {'analyte': ''},
-            {'analyte': ''},
-            {'analyte': ''},
-            {'analyte': ''}
         ]
         df_analytes = pd.DataFrame(analytes)
-        ob_analytes = GridOptionsBuilder.from_dataframe(df_analytes)
-        ob_analytes.configure_column(
-            'analyte', suppressMenu=True, sortable=False, editable=True)
-        ob_analytes.configure_column(
-            'from', suppressMenu=True, sortable=False, editable=True)
-        ob_analytes.configure_column(
-            'to', suppressMenu=True, sortable=False, editable=True)
-        ob_analytes.configure_column(
-            'target', suppressMenu=True, sortable=False, editable=True)
-        ag_analytes = AgGrid(
+        df_analytes_edit = st.data_editor(
             df_analytes,
-            ob_analytes.build(),
-            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-            theme=AgGridTheme.ALPINE,
+
         )
-        ag_analytes.data.sort_values('from', inplace=True)
-        analytes = ag_analytes.data.to_dict('records')
+        analytes = df_analytes_edit.to_dict('records')
 
         st.markdown("<hr/>", unsafe_allow_html=True)
 
@@ -374,12 +361,14 @@ def main():
                     y=df_lin_desc['mean'],
                     error_y=df_lin_desc['std'],
                     trendline="ols",
-                    trendline_options=dict(log_x=log_x, log_y=log_y)
+                    trendline_options=dict(log_x=log_x, log_y=log_y),
+                    color_discrete_sequence=px.colors.qualitative.T10
                 )
                 fig_lin.layout = plot_layout
                 fig_lin.layout.title = 'Linearity'
                 fig_lin.layout.xaxis.title.text = 'Concentration'
                 fig_lin.layout.yaxis.title.text = 'AUC'
+
                 st.plotly_chart(fig_lin, use_container_width=True)
 
                 x = np.array(df_lin[f'Nominal_{analyte}'])
@@ -413,13 +402,15 @@ def main():
                 fig_acc = px.bar(
                     x=df_acc_desc.index,
                     y=df_acc_desc['mean'],
-                    error_y=df_acc_desc['std']
+                    error_y=df_acc_desc['std'],
+                    color_discrete_sequence=px.colors.qualitative.T10
                 )
                 fig_acc.layout = plot_layout
                 fig_acc.layout.title = 'Accuracy'
                 fig_acc.layout.xaxis.title.text = 'Level (%of target)'
                 fig_acc.layout.yaxis.title.text = 'Recovery (%)'
                 fig_acc.update_xaxes(type='category')
+
                 st.plotly_chart(fig_acc, use_container_width=True)
 
             with col_rep:
@@ -429,16 +420,20 @@ def main():
                 fig_rep = px.bar(
                     x=df_rep_desc.index,
                     y=df_rep_desc['mean'],
-                    error_y=df_rep_desc['std']
+                    error_y=df_rep_desc['std'],
+                    color_discrete_sequence=px.colors.qualitative.T10,
                 )
                 fig_rep.layout = plot_layout
                 fig_rep.layout.title = 'Repeatability'
                 fig_rep.layout.xaxis.title.text = 'Level (%of target)'
                 fig_rep.layout.yaxis.title.text = 'Recovery (%)'
                 fig_rep.update_xaxes(type='category')
+
+
+
                 st.plotly_chart(fig_rep, use_container_width=True)
 
-            df = pd.DataFrame([{
+            df_validation = pd.DataFrame([{
                 'Slope':     round(slope, 2),
                 'Intercept': round(intercept, 2),
                 'R²':        round(r2, 4),
@@ -446,7 +441,7 @@ def main():
                 'LOQ':       round(loq, 2),
                 'LOD':       round(lod, 2),
             }], index=['Obtained'])
-            st.dataframe(df)
+            st.dataframe(df_validation)
 
             mask = (df_data.index > a['from']) & (df_data.index <= a['to'])
             df_peak = df_data.loc[mask]
@@ -478,7 +473,8 @@ def main():
             # right_ip_x = df_peak.index[right_ip_idx]
             # right_ip_y = df_peak['Lin_100_01'][right_ip_x]
 
-            fig_peak = px.area(df_peak['Lin_100_01'])
+            fig_peak = px.area(df_peak['Lin_100_01'],
+                               color_discrete_sequence=["#377bc4"])
             fig_peak.layout = plot_layout
             fig_peak.layout.xaxis.title.text = 'Time (min)'
             fig_peak.layout.yaxis.title.text = 'Response'
@@ -498,7 +494,8 @@ def main():
                 )
             st.plotly_chart(fig_peak, use_container_width=True)
 
-            t0 = system['t0']['value']
+            # t0 = system['t0']['value']
+            t0 = [d['value'] for d in system if d['parameter'] == 't0'][0]
             tr = peak_x
             k = (tr-t0) / t0
             w_05 = widths['0.5']['width']
@@ -530,9 +527,9 @@ def main():
                 'T':   [round(t, 2),  t_pass],
             }
 
-            df = pd.DataFrame.from_dict(pass_dict, orient='index').transpose()
-            df.index = ['Obtained', 'Pass']
-            st.dataframe(df)
+            df_system_suitability = pd.DataFrame.from_dict(pass_dict, orient='index').transpose()
+            df_system_suitability.index = ['Obtained', 'Pass']
+            st.dataframe(df_system_suitability)
 
             criteria_dict = {
                 "N": {
@@ -594,6 +591,47 @@ def main():
 
 						{d['advice']}
 					''', unsafe_allow_html=True)
+            
+            pdf_elements.append(Paragraph(analyte, pdf_styles['Heading2']))
+
+            fig_lin_for_print = copy.deepcopy(fig_lin)
+            fig_lin_for_print.layout.template = 'plotly_white'
+            fig_lin_for_print.layout.font.size = 10
+            fig_lin_for_print_bytes = BytesIO()
+            fig_lin_for_print.write_image(fig_lin_for_print_bytes, width=150, height=250)
+            fig_lin_for_print_img = Image(fig_lin_for_print_bytes)
+
+            fig_acc_for_print = copy.deepcopy(fig_acc)
+            fig_acc_for_print.layout.template = 'plotly_white'
+            fig_acc_for_print.layout.font.size = 10
+            fig_acc_for_print_bytes = BytesIO()
+            fig_acc_for_print.write_image(fig_acc_for_print_bytes, width=150, height=250)
+            fig_acc_for_print_img = Image(fig_acc_for_print_bytes)
+            
+            fig_rep_for_print = copy.deepcopy(fig_rep)
+            fig_rep_for_print.layout.template = 'plotly_white'
+            fig_rep_for_print.layout.font.size = 10
+            fig_rep_for_print_bytes = BytesIO()
+            fig_rep_for_print.write_image(fig_rep_for_print_bytes, width=150, height=250)
+            fig_rep_for_print_img = Image(fig_rep_for_print_bytes)
+
+            pdf_elements.append(Table([[fig_lin_for_print_img, fig_acc_for_print_img, fig_rep_for_print_img]]))
+
+            pdf_elements.append(sci_report.df_to_table(df_validation))
+
+            fig_peak_for_print = copy.deepcopy(fig_peak)
+            fig_peak_for_print.layout.template = 'plotly_white'
+            fig_peak_for_print.layout.font.size = 10
+            fig_peak_for_print_bytes = BytesIO()
+            fig_peak_for_print.write_image(fig_peak_for_print_bytes, width=450, height=250)
+            fig_peak_for_print_img = Image(fig_peak_for_print_bytes)
+
+            pdf_elements.append(fig_peak_for_print_img)
+
+            pdf_elements.append(sci_report.df_to_table(df_system_suitability))
+
+            #page break
+            pdf_elements.append(PageBreak())
 
     st.markdown("<hr/>", unsafe_allow_html=True)
 
@@ -601,6 +639,18 @@ def main():
         st.dataframe(df_calcs)
 
     st.markdown("<hr/>", unsafe_allow_html=True)
+
+    with st.expander('Report PDF'):
+        
+        # Build the PDF document
+        pdf_doc.build(pdf_elements, canvasmaker=sci_report.NumberedCanvas)
+        pdf_bytes = pdf_buffer.getbuffer().tobytes()
+
+        pdf_pngs = sci_report.pdf_to_png(pdf_bytes)
+
+        st.download_button("Download PDF", data=pdf_bytes, file_name=f"HPLC Validation Report.pdf")
+        for i, png in enumerate(pdf_pngs):
+            st.image(png, caption=f"Page {i+1}")
 
 
 if __name__ == '__main__':
