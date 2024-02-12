@@ -335,7 +335,8 @@ def main():
 					row[prop] = region.bbox
 				else:
 					row[prop] = getattr(region, prop)
-			df_regions = df_regions.append(row, ignore_index=True)
+			# df_regions = df_regions.append(row, ignore_index=True)
+			df_regions = pd.concat([df_regions, pd.DataFrame([row])], ignore_index=True)
 		df_regions = df_regions.astype({'area': float})
 
 		for col in [
