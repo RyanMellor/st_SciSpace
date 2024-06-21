@@ -12,6 +12,7 @@ pandas==2.1.4
 Pillow==10.2.0
 plotly==5.22.0
 git+https://github.com/PMEAL/porespy.git@dev
+PyMuPDF==1.24.5
 rdkit==2023.9.6
 reportlab==4.2.0
 scikit-image==0.22.0
