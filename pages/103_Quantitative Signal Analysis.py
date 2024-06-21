@@ -19,8 +19,6 @@ sci_setup.setup_page("Quantitative Signal Analysis")
 data_test = "./assets/public_data/Quantitative Signal Analyser - Data - Test1.xlsx"
 model_test = "./assets/public_data/Quantitative Signal Analyser - Model - Test1.xlsx"
 
-PRIMARY_COLOR = "#4589ff"
-
 plot_layout = {
 	"template": 'plotly_dark',
 	"legend": {
