@@ -4,7 +4,6 @@ assets/private_data
 components
 
 pages/301_HPLC Method Development.py
-pages/900_~~Miscellaneous~~.py
 pages/901_Thermal Analysis.py
 pages/902_Molecular Dynamics.py
 pages/903_Microfluidics.py

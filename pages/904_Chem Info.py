@@ -1,5 +1,4 @@
 import streamlit as st
-from st_keyup import st_keyup
 
 import io
 import cv2
