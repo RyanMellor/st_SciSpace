@@ -12,12 +12,13 @@ from simplification.cutil import simplify_coords
 import extcolors
 
 from helpers import sci_setup, sci_data
+from helpers.sci_style import *
 sci_setup.setup_page("Data Extraction")
 
 img_test = "./assets/public_data/Data Extractor - Test1.png"
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
-PRIMARY_COLOR = "#4589ff"
+# PRIMARY_COLOR = "#4589ff"
 
 # ---- Functions ----
 
@@ -98,7 +99,7 @@ def main():
 					'type': 'rect', 'originX': 'left', 'originY': 'top',
 					'left': img.width*0.06, 'top': img.height*0.03,
 					'width': img.width*0.93, 'height': img.height*0.83,
-					'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
+					'fill': '#00000000', 'stroke': THEME_PRIMARY, 'strokeWidth': 4
 				}
 			]
 		}

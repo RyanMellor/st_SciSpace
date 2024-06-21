@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
-from streamlit_drawable_canvas import st_canvas
 from pprint import pprint
 from matplotlib import pyplot as plt
 from sklearn.mixture import GaussianMixture
@@ -15,13 +14,13 @@ import os
 os.environ["OMP_NUM_THREADS"] = '1'
 
 from helpers import sci_setup, sci_data, sci_image
+from helpers.sci_style import *
 sci_setup.setup_page("Particle Analysis")
 
 import warnings
 warnings.filterwarnings('ignore')
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
-PRIMARY_COLOR = "#4589ff"
 
 img_test = "./assets/public_data/Particle Analysis - Test1.png"
 
@@ -32,7 +31,6 @@ img_test = "./assets/public_data/Particle Analysis - Test1.png"
 # add_to_session_state()
 
 # ---- Functions ----
-
 
 st.cache_data(show_spinner=False)
 def detect_particles(img, params):
@@ -282,7 +280,7 @@ def main():
 				curve_type='normal',
 				show_curve=False,
 				# show_rug=False,
-				colors=[PRIMARY_COLOR])
+				colors=[THEME_PRIMARY])
 			# Plot Best GMM
 			fig.add_trace(go.Scatter(x=x, y=pdf, name="Best GMM"))
 			# Plot each component

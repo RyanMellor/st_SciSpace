@@ -31,7 +31,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'jfif']
-PRIMARY_COLOR = "#4589ff"
 
 img_test = "./assets/public_data/Particle Analysis - Test2.tif"
 

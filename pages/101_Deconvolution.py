@@ -1,8 +1,5 @@
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
-# from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, AgGridTheme
-# from st_aggrid.grid_options_builder import GridOptionsBuilder
-# from st_aggrid.shared import JsCode
 
 import json
 import numpy as np
@@ -14,24 +11,14 @@ from lmfit import models
 from sklearn.metrics import r2_score
 from scipy.signal import savgol_filter
 
-from helpers import sci_setup, sci_data, sci_utils
+from helpers import sci_setup, sci_data, sci_utils, sci_data
+from helpers.sci_style import *
 sci_setup.setup_page("Deconvolution")
 
 data_test = "./assets/public_data/Deconvolution - Data - Test1.xlsx"
 model_test = "./assets/public_data/Deconvolution - Model - Test1.txt"
 
-PRIMARY_COLOR = "#4589ff"
-
-def sample_selection(samples:list):
-	selected = [False] * len(samples)
-	selected[0] = True
-	df = pd.DataFrame({'✔': selected, 'Samples': samples})
-	edited_df = st.data_editor(
-		df,
-		disabled=['Samples'],
-		hide_index=True,
-		use_container_width=True)
-	return edited_df[edited_df['✔']]['Samples'].tolist()
+# PRIMARY_COLOR = "#4589ff"
 
 def main():
 
@@ -56,7 +43,7 @@ def main():
 		with col_dataselector:
 			tab_selected_samples, tab_settings = st.tabs(['Select samples', 'Settings'])
 			with tab_selected_samples:
-				selected_samples = sample_selection(df_data.columns.tolist())
+				selected_samples = sci_data.sample_selection(df_data.columns.tolist())
 			with tab_settings:
 
 				# setup axis labels

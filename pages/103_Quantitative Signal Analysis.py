@@ -115,31 +115,33 @@ def main():
 			model_file = model_test
 
 		feature_df = sci_data.file_to_df(model_file)
-
-		df_features = feature_df
-		ob_features = GridOptionsBuilder.from_dataframe(df_features)
-		ob_features.configure_selection(use_checkbox=True, pre_selected_rows=[0])
-		ob_features.configure_column('feature', suppressMenu=True, sortable=False, editable=True)
-		ob_features.configure_column('from', suppressMenu=True, sortable=False, editable=True)
-		ob_features.configure_column('to', suppressMenu=True, sortable=False, editable=True)
-		ob_features.configure_column('weighting', suppressMenu=True, sortable=False, editable=True)
-		ag_features = AgGrid(
-			df_features,
-			ob_features.build(),
-			columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-			theme=AgGridTheme.ALPINE,
+		feature_df = st.data_editor(
+			feature_df,
+			num_rows="dynamic",
 		)
 		st.caption("Use the checkbox to identify which feature to normalize against.")
-		ag_features.data.sort_values(
+		feature_df.sort_values(
 			by='to' if x_reversed else 'from',
 			ascending=False if x_reversed else True,
 			inplace=True)
-		features = ag_features.data.to_dict('records')
-		try:
-			norm_feature = ag_features.selected_rows[0]['feature']
-		except:
+		
+		features = feature_df.to_dict('records')
+		norm_idx = feature_df[feature_df['norm'] == True]
+		if len(norm_idx) == 0:
 			st.warning("Please select a feature to normalize against")
 			return None
+		elif len(norm_idx) > 1:
+			st.warning("Please select only one feature to normalize against")
+			return None
+		else:
+			norm_idx = norm_idx.index[0]
+			norm_feature = feature_df.loc[norm_idx, 'feature']
+		# try:
+		# 	norm_idx = feature_df[feature_df['norm'] == True].index[0]
+		# 	norm_feature = feature_df.loc[norm_idx, 'feature']
+		# except:
+		# 	st.warning("Please select a feature to normalize against")
+		# 	return None
 
 		st.markdown("<hr/>", unsafe_allow_html=True)
 

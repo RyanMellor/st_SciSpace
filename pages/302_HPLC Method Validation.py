@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from pprint import pprint
+import kaleido
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 import plotly.express as px
@@ -41,7 +42,6 @@ sci_setup.setup_page("HPLC Method Validation")
 data_test = './assets/public_data/HPLC Method Validation - Test1.xlsx'
 
 FILETYPES_IMG = ['bmp', 'gif', 'jpg', 'jpeg', 'png', 'tif', 'tiff']
-PRIMARY_COLOR = "#4589ff"
 
 template_path = './assets/public_data/HPLC Method Validation - Template.xlsx'
 with open(template_path, 'rb') as f:
@@ -78,7 +78,6 @@ hr = [Spacer(1, 10), HRFlowable(width="100%")]
 pdf_elements.append(Paragraph("SciSpace", pdf_styles['Normal']))
 pdf_elements.append(Paragraph("HPLC Method Validation", pdf_styles['Heading1']))
 pdf_elements += hr
-
 
 def lerp_idx(series, idx):
     # frac, whole = math.modf(idx)
@@ -203,7 +202,8 @@ def main():
         df_system = pd.DataFrame(system)
         df_system_edit = st.data_editor(
             df_system,
-            disabled=['parameter', 'units']
+            disabled=['parameter', 'units'],
+            hide_index=True,
             )
         system = df_system_edit.to_dict('records')
 
@@ -225,7 +225,7 @@ def main():
         df_analytes = pd.DataFrame(analytes)
         df_analytes_edit = st.data_editor(
             df_analytes,
-
+            hide_index=True,
         )
         analytes = df_analytes_edit.to_dict('records')
 
@@ -256,18 +256,14 @@ def main():
         col_dataselector, col_plotraw = st.columns([1, 3])
 
         with col_dataselector:
-            ob_samples = GridOptionsBuilder.from_dataframe(samples)
-            ob_samples.configure_selection(
-                selection_mode='multiple', use_checkbox=True, pre_selected_rows=[0])
-            ob_samples.configure_column(
-                'samples', suppressMenu=True, sortable=False)
-            ag_samples = AgGrid(samples,
-                                ob_samples.build(),
-                                height=600,
-                                update_mode=GridUpdateMode.SELECTION_CHANGED,
-                                theme=AgGridTheme.ALPINE)
-            selected_samples = [i['_selectedRowNodeInfo']
-                                ['nodeRowIndex'] for i in ag_samples.selected_rows]
+            select_samples = st.dataframe(
+                samples,
+                use_container_width=True,
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="multi-row",
+            )
+            selected_samples = select_samples.selection.rows
 
         with col_plotraw:
             # TODO add options for labels to sidebar
@@ -428,8 +424,6 @@ def main():
                 fig_rep.layout.xaxis.title.text = 'Level (%of target)'
                 fig_rep.layout.yaxis.title.text = 'Recovery (%)'
                 fig_rep.update_xaxes(type='category')
-
-
 
                 st.plotly_chart(fig_rep, use_container_width=True)
 

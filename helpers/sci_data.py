@@ -21,3 +21,27 @@ def file_to_df(data_file, delimiter=",", index_col=None, header=None):
 	else:
 		print("Unsupported file format")
 		return None
+	
+def sample_selection(samples:list, return_index=False):
+	"""
+	Display a list of samples and return the selected samples.
+	
+	Parameters
+	----------
+	samples : list
+		List of samples to be displayed.
+		return_index : bool
+		If True, return the index of the selected samples. If False, return the samples.
+	"""
+	selected = st.dataframe(
+		pd.DataFrame(samples, columns=['Samples']),
+		on_select="rerun",
+		selection_mode="multi-row",
+		hide_index=True,
+		use_container_width=True
+	)
+	rows = selected.selection.rows
+	if return_index:
+		return rows
+	else:
+		return [samples[i] for i in rows]

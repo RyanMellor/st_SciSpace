@@ -5,7 +5,9 @@ from PIL import Image
 from streamlit_drawable_canvas import st_canvas
 from uuid import uuid4
 
-PRIMARY_COLOR = "#4589ff"
+from helpers.sci_style import *
+
+# THEME_PRIMARY = "#4589ff"
 
 def new_canvas_key():
 	st.session_state['canvas_key'] = f'canvas_{str(uuid4())}'
@@ -84,13 +86,13 @@ def crop_and_calibrate(
 				'type': 'line',
 				'x1': img_resized.width*initial_scalebar_pos[0], 'y1': img_resized.height*initial_scalebar_pos[1],
 				'x2': img_resized.width*initial_scalebar_pos[2], 'y2': img_resized.height*initial_scalebar_pos[3],
-				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
+				'fill': '#00000000', 'stroke': THEME_PRIMARY, 'strokeWidth': 4
 				},
 				{
 				'type': 'rect',
 				'left': img_resized.width*initial_roi_pos[0], 'top': img_resized.height*initial_roi_pos[1],
 				'width': img_resized.width*initial_roi_pos[2], 'height': img_resized.height*initial_roi_pos[3],
-				'fill': '#00000000', 'stroke': PRIMARY_COLOR, 'strokeWidth': 4
+				'fill': '#00000000', 'stroke': THEME_PRIMARY, 'strokeWidth': 4
 				}
 			]
 		}
@@ -104,7 +106,7 @@ def crop_and_calibrate(
 			display_toolbar = False,
 			initial_drawing = initial_drawing,
 			fill_color = '#00000000',
-			stroke_color = PRIMARY_COLOR,
+			stroke_color = THEME_PRIMARY,
 			stroke_width = 4
 		)
 		st.caption("Doubleclicking objects will remove them.")
