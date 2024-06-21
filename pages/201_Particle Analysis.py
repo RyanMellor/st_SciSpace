@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 from pprint import pprint
+import matplotlib
 from matplotlib import pyplot as plt
 from sklearn.mixture import GaussianMixture
 import math
@@ -57,10 +58,11 @@ def detect_particles(img, params):
 		minRadius=int(params["diameter_val"][0]/2), 
 		maxRadius=int(params["diameter_val"][1]/2),
 		)
+	c_rgb = 255 * np.array(matplotlib.colors.to_rgb(THEME_PRIMARY))
 	if circles is not None:
 		for circle in circles[0]:
 			x, y, r = circle
-			cv2.circle(img_output, (int(x), int(y)), int(r), (69, 137, 255), 2)
+			cv2.circle(img_output, (int(x), int(y)), int(r), c_rgb, 2)
 			cv2.circle(img_output, (int(x), int(y)), 2, (255, 255, 255), 2)
 			diameters.append(2 * r)
 
