@@ -13,7 +13,7 @@ Pillow==10.2.0
 plotly==5.22.0
 git+https://github.com/PMEAL/porespy.git@dev
 PyMuPDF==1.24.5
-rdkit-pypi==2022.9.5
+rdkit
 reportlab==4.2.0
 scikit-image==0.22.0
 scikit-learn==1.5.0
