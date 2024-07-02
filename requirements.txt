@@ -13,6 +13,7 @@ pandas==2.1.4
 Pillow==10.2.0
 plotly==5.22.0
 git+https://github.com/PMEAL/porespy.git@dev
+pubchempy==1.0.4
 py3Dmol==2.1.0
 PyMuPDF==1.24.5
 rdkit
