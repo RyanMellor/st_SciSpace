@@ -1,24 +1,15 @@
 import streamlit as st
 
-import io
-import cv2
-import sys
-import json
-import numpy as np
-import base64
-from datetime import date
-from PIL import Image
 import warnings
-import pandas as pd
 import os
-import argparse
+import re
+import requests
 
 from rdkit import Chem, DataStructs
 from rdkit.Chem import Draw, AllChem, Descriptors
 import py3Dmol
 from stmol import showmol
-import re
-import requests
+import pubchempy as pcp
 
 warnings.filterwarnings('ignore')
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -56,8 +47,7 @@ def render_mol(xyz):
     xyzview = py3Dmol.view(width=300, height=300)
     xyzview.addModel(xyz,'mol')
     xyzview.setBackgroundColor('#2b2b2b')
-    for elm in ELEMENT_COLORS_HEX:
-        xyzview.addStyle({},{'stick':{'colorscheme':f'Jmol', 'color':f'{elm}'}})
+    xyzview.setStyle({'stick':{'colorscheme':'Jmol'}})
     xyzview.zoomTo()
     showmol(xyzview, height=300,width=300)
 
@@ -73,6 +63,16 @@ def molprop_calc(mol):
         'NumRotatableBonds': Descriptors.NumRotatableBonds(mol),
         'Charge': Chem.GetFormalCharge(mol),
     }
+
+@st.cache_data
+def pubchem_from_smiles(compound_smiles):
+    compound_pc = pcp.get_compounds(compound_smiles, 'smiles')[0]
+    return compound_pc
+
+@st.cache_data
+def pubchem_from_name(compound_name):
+    compound_pc = pcp.get_compounds(compound_name, 'name')[0]
+    return compound_pc
 
 def main():
     # mol_ids_dict = {
@@ -91,21 +91,31 @@ def main():
     #     compound_smiles = cactus_search(compound_id, 'smiles')
     #     st.write(f"SMILES:\n\n{compound_smiles}")
 
-    input_type = st.selectbox("Input Type", ["Identifier", "SMILES", "MOL"])
+    input_type = st.selectbox("Input Type", ["Name", "SMILES", "MOL"])
     
-    if input_type == "Identifier":
-        compound_id = st.text_input("Identifier", value='58-08-2', label_visibility='collapsed')
+    if input_type == "Name":
+        compound_name = st.text_input("Name", value='Caffeine', label_visibility='collapsed')
         try:
-            compound_smiles = cactus_search(compound_id, 'smiles')
+            compound_pc = pubchem_from_name(compound_name)
+            compound_smiles = compound_pc.canonical_smiles
+            mol = Chem.MolFromSmiles(compound_smiles)
         except ValueError as e:
             st.error(f"{e}")
             return None
-        mol = Chem.MolFromSmiles(compound_smiles)
     
     elif input_type == "SMILES":
         compound_smiles = st.text_input(
-            'SMILES', value='Cn1cnc2n(C)c(=O)n(C)c(=O)c12', label_visibility='collapsed')
+            'SMILES', value='CN1C=NC2=C1C(=O)N(C(=O)N2C)C', label_visibility='collapsed')
         mol = Chem.MolFromSmiles(compound_smiles)
+
+    # elif input_type == "Identifier":
+    #     compound_id = st.text_input("Identifier", value='58-08-2', label_visibility='collapsed')
+    #     try:
+    #         compound_smiles = cactus_search(compound_id, 'smiles')
+    #     except ValueError as e:
+    #         st.error(f"{e}")
+    #         return None
+    #     mol = Chem.MolFromSmiles(compound_smiles)
 
     elif input_type == "MOL":
         molfile = st.file_uploader("Upload MOL File", type=['mol'])
@@ -114,15 +124,58 @@ def main():
             mol = Chem.rdmolfiles.MolFromMolFile(molfile)
         else:
             mol = Chem.rdmolfiles.MolFromMolBlock(molfile.getvalue().decode("utf-8"))
-        compound_smiles = Chem.MolToSmiles(mol)
+    
+    compound_smiles = Chem.MolToSmiles(mol)
+    compound_pc = pubchem_from_smiles(compound_smiles)
     
     st.markdown('---')
 
-    col_1, col_2 = st.columns([1,2])
+    cas_re = re.compile(r"^\d{2,7}-\d{2}-\d$")
+
+    st.markdown("### Compound Identifiers")
+    identifiers = {
+        # 'Common Name': compound_pc.synonyms[0],
+        'IUPAC Name': compound_pc.iupac_name,
+        'Formula': compound_pc.molecular_formula,
+        'Canonical SMILES': compound_pc.canonical_smiles,
+        'InChI': compound_pc.inchi,
+        'InChIKey': compound_pc.inchikey,
+        'PubChem CID': compound_pc.cid,
+        'CAS': "",
+        'Synonyms': ',\n'.join(compound_pc.synonyms) if compound_pc.synonyms else 'N/A',
+    }
+    for syn in compound_pc.synonyms:
+        if cas_re.match(syn):
+            identifiers['CAS'] = syn
+            break
+
+    st.dataframe(identifiers, use_container_width=True)
+
+    properties = {
+        'Molecular Weight': compound_pc.molecular_weight,
+        'XLogP': compound_pc.xlogp,
+        'H-Bond Donors': compound_pc.h_bond_donor_count,
+        'H-Bond Acceptors': compound_pc.h_bond_acceptor_count,
+        'Rotatable Bonds': compound_pc.rotatable_bond_count,
+        'Exact Mass': compound_pc.exact_mass,
+        'Monoisotopic Mass': compound_pc.monoisotopic_mass,
+        'Topological Polar Surface Area': compound_pc.tpsa,
+        'Heavy Atom Count': compound_pc.heavy_atom_count,
+        'Charge': compound_pc.charge,
+        'Complexity': compound_pc.complexity,
+    }
+    for key, value in properties.items():
+        try:
+            properties[key] = round(float(value), 2)
+        except TypeError:
+            pass    
+
+    col_1, col_2 = st.columns(2)
     with col_1:
-        st.markdown("#####")
-        prop = molprop_calc(mol)
-        st.dataframe(prop)
+        st.markdown("### Calculated Properties")
+        # prop = molprop_calc(mol)
+        # st.dataframe(prop)
+        st.dataframe(properties, use_container_width=True)
         
     with col_2:
         tab_2d, tab_3d = st.tabs(['2D', '3D'])
@@ -133,20 +186,13 @@ def main():
             im = Draw.MolToImage(mol, size=(300, 300), options=options)
             st.image(im)
 
-            # image = st.empty()
-            # i = 0
-            # while True:
-            #     options.rotate = i
-            #     im = Draw.MolToImage(mol, size=(300, 300), options=options)
-            #     image.image(im)
-            #     i += 0.1
-            #     if i > 360:
-            #         i = 0
-
             blk = makeblock(compound_smiles)
         with tab_3d:
             render_mol(blk)
-            
 
+    # for key, value in compound_pc.to_dict().items():
+    #     if value:
+    #         st.write(f"{key}: {value}")
+            
 if __name__ == '__main__':
     main()

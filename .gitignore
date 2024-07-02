@@ -2,12 +2,15 @@
 archive
 assets/private_data
 components
+catboost_info
 
 pages/301_HPLC Method Development.py
 pages/901_Thermal Analysis.py
 pages/902_Molecular Dynamics.py
 pages/903_Microfluidics.py
 pages/990_Chat.py
+pages/905_Chem ML.py
+pages/906_Chem Explorer.py
 pages/991_Component.py
 pages/999_Testing.py
 
