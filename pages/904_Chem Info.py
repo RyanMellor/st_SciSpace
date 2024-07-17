@@ -106,10 +106,6 @@ def parse_full_json(full_record):
         if name == "First Aid Measures":
             for risk in section['Information']:
                 parsed["safety_and_hazards"][risk['Name']] = risk['Value']['StringWithMarkup'][0]['String']
-        # if name in ['Inhalation First Aid','Skin First Aid','Eye First Aid','Ingestion First Aid', 'First Aid Measures']:
-            # value = section["Information"][0]["Value"]["StringWithMarkup"][0]['String']
-            # value = section["Information"]
-            # parsed["safety_and_hazards"][name] = value
 
     try:
         for record in full_record["Record"]["Section"]:
@@ -313,16 +309,10 @@ def main():
         'Canonical SMILES': compound_pc.canonical_smiles,
         'InChI': compound_pc.inchi,
         'InChIKey': compound_pc.inchikey,
-        'PubChem CID': compound_pc.cid,
+        'PubChem CID': str(compound_pc.cid),
         'CAS': parsed['identifiers'].get('CAS', 'N/A'),
         'Synonyms': ',\n'.join(compound_pc.synonyms) if compound_pc.synonyms else 'N/A',
     }
-    # if compound_pc.synonyms:
-    #     for syn in compound_pc.synonyms:
-    #         if cas_re.match(syn):
-    #             identifiers['CAS'] = syn
-    #             break
-
     st.dataframe(identifiers, use_container_width=True)
 
     properties = {

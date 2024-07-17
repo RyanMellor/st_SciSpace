@@ -17,8 +17,6 @@ def setup_page(page_title):
 
     st.title(page_title)
 
-    st.set_option('deprecation.showPyplotGlobalUse', False)
-
     st.sidebar.image(logo())
 
     page_setup = """

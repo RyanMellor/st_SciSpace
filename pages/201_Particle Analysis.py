@@ -7,7 +7,7 @@ import plotly.figure_factory as ff
 import plotly.graph_objects as go
 from pprint import pprint
 import matplotlib
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 from sklearn.mixture import GaussianMixture
 import math
 

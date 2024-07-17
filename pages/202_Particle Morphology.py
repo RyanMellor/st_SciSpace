@@ -7,6 +7,7 @@ import pandas as pd
 import imutils
 from uuid import uuid4
 import time
+import matplotlib.pyplot as plt
 
 import plotly.graph_objects as go
 
@@ -17,6 +18,7 @@ from skimage.measure import regionprops, regionprops_table
 from skimage.segmentation import watershed, felzenszwalb
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import spectral_clustering
+from sklearn.mixture import GaussianMixture
 from scipy import ndimage as ndi
 
 import porespy as ps
@@ -426,8 +428,6 @@ def main():
 				
 		# with tab_histogram:
 		elif data_visualization_selection == "Histogram":
-			import matplotlib.pyplot as plt
-			from sklearn.mixture import GaussianMixture
 			# Shimazaki and Shinomoto bin width optimization algorithm in pure python
 			x = df_regions[variable_1]
 			# X = np.array(x).reshape(-1, 1)
