@@ -4,6 +4,9 @@ import warnings
 import os
 import re
 import requests
+import base64
+from pathlib import Path
+import pandas as pd
 
 from rdkit import Chem, DataStructs
 from rdkit.Chem import Draw, AllChem, Descriptors
@@ -14,9 +17,13 @@ import pubchempy as pcp
 warnings.filterwarnings('ignore')
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-from helpers import sci_setup, sci_data
+from helpers import sci_setup, sci_data, sci_safety
 from helpers.sci_style import *
 sci_setup.setup_page("Chem Info")
+
+re_cas = re.compile(r'\d{2,7}-\d\d-\d')
+re_ghs_p_statements = re.compile(r'(P\d{3})')
+re_ghs_h_statements = re.compile(r'(H\d{3})')
 
 @st.cache_data
 def cactus_search(query, search_type):
@@ -35,11 +42,14 @@ def validate_cas(cas):
     else:
         return True
     
-def makeblock(smi):
+def makeblock(smi, optimize=True):
     mol = Chem.MolFromSmiles(smi)
-    mol = Chem.AddHs(mol)
-    AllChem.EmbedMolecule(mol, useRandomCoords=True)
-    AllChem.MMFFOptimizeMolecule(mol)
+    if optimize:
+        mol = Chem.AddHs(mol)
+        AllChem.EmbedMolecule(mol, useRandomCoords=True)
+        AllChem.MMFFOptimizeMolecule(mol)
+    else:
+        AllChem.Compute2DCoords(mol)
     mblock = Chem.MolToMolBlock(mol)
     return mblock
 
@@ -74,29 +84,177 @@ def pubchem_from_name(compound_name):
     compound_pc = pcp.get_compounds(compound_name, 'name')[0]
     return compound_pc
 
+@st.cache_data
+def get_full_json(cid):
+    return requests.get(f'https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON').json()
+
+@st.cache_data
+def parse_full_json(full_record):
+    parsed = {
+        "identifiers" : {},
+		"computed_properties" : {},
+		"experimental_properties" : {},
+		"safety_and_hazards" : {},
+    }
+    for section in find_dicts_with_key(full_record, 'TOCHeading'):
+        name = section['TOCHeading']
+        if name == "First Aid Measures":
+            for risk in section['Information']:
+                parsed["safety_and_hazards"][risk['Name']] = risk['Value']['StringWithMarkup'][0]['String']
+        # if name in ['Inhalation First Aid','Skin First Aid','Eye First Aid','Ingestion First Aid', 'First Aid Measures']:
+            # value = section["Information"][0]["Value"]["StringWithMarkup"][0]['String']
+            # value = section["Information"]
+            # parsed["safety_and_hazards"][name] = value
+
+    try:
+        for record in full_record["Record"]["Section"]:
+
+            if record["TOCHeading"] == "Names and Identifiers":
+                for section in record["Section"]:
+                    if section["TOCHeading"] == "Computed Descriptors":
+                        for subsection in section["Section"]:
+                            name = subsection["TOCHeading"]
+                            value = subsection["Information"][0]["Value"]["StringWithMarkup"][0]['String']
+                            parsed["identifiers"][name] = value
+
+                    elif section["TOCHeading"] == "Molecular Formula":
+                        parsed["identifiers"]['Molecular Formula'] = section["Information"][0]["Value"]["StringWithMarkup"][0]["String"]
+
+                    elif section["TOCHeading"] == "Other Identifiers":
+                        for subsection in section["Section"]:
+                            name = subsection["TOCHeading"]
+                            value = subsection["Information"][0]["Value"]["StringWithMarkup"][0]['String']
+                            parsed["identifiers"][name] = value
+
+                    elif section["TOCHeading"] == "Synonyms":
+                        for subsection in section["Section"]:
+                            if subsection["TOCHeading"] == "Depositor-Supplied Synonyms":
+                                parsed["identifiers"]['Synonyms'] = []
+                                existing_names = [x.lower().replace("-", '') for x in [parsed["identifiers"]['CAS']]]
+                                for synonym in subsection["Information"][0]["Value"]["StringWithMarkup"]:
+                                    if synonym["String"].lower().replace("-", '') not in existing_names:
+                                        parsed["identifiers"]['Synonyms'].append(synonym["String"])
+                                        if len(parsed["identifiers"]['Synonyms']) >= 10:
+                                            break
+
+            elif record["TOCHeading"] == "Chemical and Physical Properties":
+                for section in record["Section"]:
+
+                    if section["TOCHeading"] == "Computed Properties":
+                        for subsection in section["Section"]:
+                            name = subsection["TOCHeading"]
+                            parsed["computed_properties"][name] = {}
+
+                            try:
+                                value = subsection["Information"][0]["Value"]["StringWithMarkup"][0]['String']
+                                if value == "Yes":
+                                    value = True
+                                elif value == "No":
+                                    value = False
+                            except KeyError:
+                                value = subsection["Information"][0]["Value"]["Number"][0]
+                            parsed["computed_properties"][name]['value'] = value
+
+                            try:
+                                unit = subsection["Information"][0]["Value"]["Unit"]
+                            except KeyError:
+                                unit = None
+                            parsed["computed_properties"][name]["unit"] = unit
+
+                    elif section["TOCHeading"] == "Experimental Properties":
+                        for subsection in section["Section"]:
+                            name = subsection["TOCHeading"]
+                            parsed["experimental_properties"][name] = []
+
+                            for source in subsection["Information"]:
+                                entry = {}
+                                try:
+                                    reference = source["Reference"]
+                                except KeyError:
+                                    reference = None
+                                entry["reference"] = reference
+
+                                try:
+                                    unit = source["Unit"]
+                                except KeyError:
+                                    unit = None
+                                entry["unit"] = unit
+
+                                try:
+                                    value = source["Value"]["StringWithMarkup"][0]['String']
+                                    if value == "Yes":
+                                        value = True
+                                    elif value == "No":
+                                        value = False
+                                except KeyError:
+                                    try:
+                                        value = source["Value"]["Number"]
+                                        if len(value) == 1:
+                                            value = value[0]
+                                    except KeyError:
+                                        print(source["Value"])
+                                        continue
+                                entry['value'] = value
+
+                                parsed["experimental_properties"][name].append(entry)
+
+            elif record["TOCHeading"] == "Safety and Hazards":
+                for section in record["Section"]:
+                    for subsection in section["Section"]:
+                        name = subsection["TOCHeading"]
+                        if name == "GHS Classification":
+                            for classification in subsection["Information"]:
+                                if classification['Name'] == 'Pictogram(s)':
+                                    if not 'Pictogram(s)' in parsed["safety_and_hazards"].keys():
+                                        parsed["safety_and_hazards"]['Pictogram(s)'] = [i['Extra'] for i in classification['Value']['StringWithMarkup'][0]['Markup']]
+                                if classification['Name'] == 'Signal':
+                                    if not 'Signal' in parsed["safety_and_hazards"].keys():
+                                        parsed["safety_and_hazards"]['Signal'] = classification['Value']['StringWithMarkup'][0]['String']
+                                if classification['Name'] == 'GHS Hazard Statements':
+                                    if not 'GHS Hazard Statements' in parsed["safety_and_hazards"].keys():
+                                        string = ''.join(i['String'] for i in classification['Value']['StringWithMarkup'])
+                                        parsed["safety_and_hazards"]['GHS Hazard Statements'] = re_ghs_h_statements.findall(string)
+                                if classification['Name'] == 'Precautionary Statement Codes':
+                                    if not 'Precautionary Statement Codes' in parsed["safety_and_hazards"].keys():
+                                        string = classification['Value']['StringWithMarkup'][0]['String']
+                                        parsed["safety_and_hazards"]['Precautionary Statement Codes'] = re_ghs_p_statements.findall(string)
+    except KeyError:
+        pass
+
+    return parsed
+
+def find_dicts_with_key(node, k):
+	if isinstance(node, list):
+		for i in node:
+			for x in find_dicts_with_key(i, k):
+				yield x
+	elif isinstance(node, dict):
+		if k in node:
+			yield node
+		for v in node.values():
+			for x in find_dicts_with_key(v, k):
+				yield x
+
+def img_to_bytes(img_path):
+    img_bytes = Path(img_path).read_bytes()
+    img_base64 = base64.b64encode(img_bytes).decode()
+    return img_base64
+
+def img_to_html(img_path):
+    img_bytes = img_to_bytes(img_path)
+    img_html = f"<img src='data:image/png;base64,{img_bytes}' class='img-fluid' width=50px>"
+    return img_html
+
 def main():
-    # mol_ids_dict = {
-    #     'names': [],
-    #     'cas': '',
-    #     'smiles': '',
-    #     'formula': '',
-    #     'inchi': '',
-    #     'inchikey': '',	
-    #     'pubchem_cid': '',
-    # }
-    # compound_smiles = st_keyup('SMILES', value='c1cc(C(=O)O)c(OC(=O)C)cc1', label_visibility='collapsed')
-
-    # with st.expander("Cactus - Chemical Identifier Resolver"):
-    #     compound_id = st.text_input("Identifier", value='58-08-2', label_visibility='collapsed')
-    #     compound_smiles = cactus_search(compound_id, 'smiles')
-    #     st.write(f"SMILES:\n\n{compound_smiles}")
-
     input_type = st.selectbox("Input Type", ["Name", "SMILES", "MOL"])
     
     if input_type == "Name":
         compound_name = st.text_input("Name", value='Caffeine', label_visibility='collapsed')
         try:
             compound_pc = pubchem_from_name(compound_name)
+            if compound_pc.cid == None:
+                st.error(f"Compound '{compound_name}' not found in PubChem")
+                return None
             compound_smiles = compound_pc.canonical_smiles
             mol = Chem.MolFromSmiles(compound_smiles)
         except ValueError as e:
@@ -107,15 +265,11 @@ def main():
         compound_smiles = st.text_input(
             'SMILES', value='CN1C=NC2=C1C(=O)N(C(=O)N2C)C', label_visibility='collapsed')
         mol = Chem.MolFromSmiles(compound_smiles)
-
-    # elif input_type == "Identifier":
-    #     compound_id = st.text_input("Identifier", value='58-08-2', label_visibility='collapsed')
-    #     try:
-    #         compound_smiles = cactus_search(compound_id, 'smiles')
-    #     except ValueError as e:
-    #         st.error(f"{e}")
-    #         return None
-    #     mol = Chem.MolFromSmiles(compound_smiles)
+        compound_smiles = Chem.MolToSmiles(mol)
+        compound_pc = pubchem_from_smiles(compound_smiles)
+        if compound_pc.cid == None:
+            st.error(f"Compound with SMILES '{compound_smiles}' not found in PubChem")
+            return None
 
     elif input_type == "MOL":
         molfile = st.file_uploader("Upload MOL File", type=['mol'])
@@ -124,30 +278,37 @@ def main():
             mol = Chem.rdmolfiles.MolFromMolFile(molfile)
         else:
             mol = Chem.rdmolfiles.MolFromMolBlock(molfile.getvalue().decode("utf-8"))
-    
-    compound_smiles = Chem.MolToSmiles(mol)
-    compound_pc = pubchem_from_smiles(compound_smiles)
+        compound_smiles = Chem.MolToSmiles(mol)
+        compound_pc = pubchem_from_smiles(compound_smiles)
+        if compound_pc.cid == None:
+            st.error(f"Compound with SMILES '{compound_smiles}' not found in PubChem")
+            return None
     
     st.markdown('---')
 
     cas_re = re.compile(r"^\d{2,7}-\d{2}-\d$")
 
+    full_record = get_full_json(compound_pc.cid)
+    parsed = parse_full_json(full_record)
+    common_name = full_record['Record']['RecordTitle']
+
     st.markdown("### Compound Identifiers")
     identifiers = {
-        # 'Common Name': compound_pc.synonyms[0],
+        'Common Name': common_name,
         'IUPAC Name': compound_pc.iupac_name,
         'Formula': compound_pc.molecular_formula,
         'Canonical SMILES': compound_pc.canonical_smiles,
         'InChI': compound_pc.inchi,
         'InChIKey': compound_pc.inchikey,
         'PubChem CID': compound_pc.cid,
-        'CAS': "",
+        'CAS': parsed['identifiers'].get('CAS', 'N/A'),
         'Synonyms': ',\n'.join(compound_pc.synonyms) if compound_pc.synonyms else 'N/A',
     }
-    for syn in compound_pc.synonyms:
-        if cas_re.match(syn):
-            identifiers['CAS'] = syn
-            break
+    # if compound_pc.synonyms:
+    #     for syn in compound_pc.synonyms:
+    #         if cas_re.match(syn):
+    #             identifiers['CAS'] = syn
+    #             break
 
     st.dataframe(identifiers, use_container_width=True)
 
@@ -173,26 +334,85 @@ def main():
     col_1, col_2 = st.columns(2)
     with col_1:
         st.markdown("### Calculated Properties")
-        # prop = molprop_calc(mol)
-        # st.dataframe(prop)
-        st.dataframe(properties, use_container_width=True)
+        st.dataframe(properties, use_container_width=True, height=40*len(properties))
         
-    with col_2:
-        tab_2d, tab_3d = st.tabs(['2D', '3D'])
-        with tab_2d:
-            options = Draw.MolDrawOptions()
-            options.setAtomPalette(ELEMENT_COLORS_RGB)
-            options.clearBackground = False
-            im = Draw.MolToImage(mol, size=(300, 300), options=options)
-            st.image(im)
+    with st.container():
+        with col_2:
+            tab_2d, tab_3d = st.tabs(['2D', '3D'])
+            with tab_2d:
+                options = Draw.MolDrawOptions()
+                options.setAtomPalette(ELEMENT_COLORS_RGB)
+                options.clearBackground = False
+                im = Draw.MolToImage(mol, size=(300, 300), options=options)
+                st.image(im)
 
-            blk = makeblock(compound_smiles)
-        with tab_3d:
-            render_mol(blk)
+            with tab_3d:
+                optimize_3d = st.checkbox("Optimize 3D Structure", value=True)
+                blk = makeblock(compound_smiles, optimize_3d)
+                render_mol(blk)
 
-    # for key, value in compound_pc.to_dict().items():
-    #     if value:
-    #         st.write(f"{key}: {value}")
-            
+    st.markdown("### Experimental Properties")
+    with st.container(height=600):
+        for key, value in parsed['experimental_properties'].items():
+            st.markdown(f"##### {key}")
+            for entry in value:
+                st.caption(entry["value"])
+                
+    st.markdown("### Safety and Hazards")
+    with st.container(height=600):
+
+        st.markdown("##### Pictograms and Signal Word")
+        pictograms = parsed['safety_and_hazards'].get('Pictogram(s)', [])
+        if len(pictograms) == 0:
+            st.caption("No pictograms found")
+        else:
+            pictogram_cols = st.columns(len(pictograms))
+            for i, pictogram in enumerate(pictograms):
+                with pictogram_cols[i]:
+                    # st.markdown(img_to_html(f"assets/images/{pictogram}.png"), unsafe_allow_html=True)
+                    st.image(f"assets/images/{pictogram}.png", width=50)
+                    st.caption(pictogram)
+        signal_word = parsed['safety_and_hazards'].get('Signal', '')
+        if signal_word == '':
+            st.caption("No signal word found")
+        else:
+            color = 'red' if signal_word == 'Danger' else 'orange'
+            st.markdown(f":{color}[{signal_word}]", unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("##### GHS Hazard Statements")
+        hazard_statements = parsed['safety_and_hazards'].get('GHS Hazard Statements', [])
+        if len(hazard_statements) == 0:
+            st.caption("No hazard statements found")
+        else:
+            hazard_markdown = ""
+            for code in parsed['safety_and_hazards'].get('GHS Hazard Statements', []):
+                row = sci_safety.HAZARD_STATEMENTS[sci_safety.HAZARD_STATEMENTS['H-Code'] == code]
+                statement = row['Hazard Statements'].values[0]
+                hazard_markdown += f"<abbr title='{statement}'>{code}</abbr> | "
+            st.markdown(hazard_markdown[:-2], unsafe_allow_html=True)
+
+        # st.markdown("##### Precautionary Statement Codes")
+        # precaution_markdown = ""
+        # for code in parsed['safety_and_hazards'].get('Precautionary Statement Codes', []):
+        #     row = sci_safety.PRECAUTIONARY_STATEMENTS[sci_safety.PRECAUTIONARY_STATEMENTS['p_code'] == code]
+        #     statement = row['statement'].values[0]
+        #     precaution_markdown += f"<abbr title='{statement}'>{code}</abbr> | "
+        # st.markdown(precaution_markdown[:-2], unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("##### First Aid")  
+        first_aid_found = False     
+        for key, value in parsed['safety_and_hazards'].items():
+            if key in ['Inhalation First Aid','Skin First Aid','Eye First Aid','Ingestion First Aid', 'First Aid Measures']:
+                first_aid_found = True
+                st.markdown(f"{key}")
+                st.caption(value)
+        if not first_aid_found:
+            st.caption("No first aid information found")
+
+
+
+
 if __name__ == '__main__':
     main()
