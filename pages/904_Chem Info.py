@@ -21,6 +21,9 @@ from helpers import sci_setup, sci_data, sci_safety
 from helpers.sci_style import *
 sci_setup.setup_page("Chem Info")
 
+HAZARD_STATEMENTS = pd.read_excel("./assets/public_data/ghs_h_codes.xlsx")
+PRECAUTIONARY_STATEMENTS = pd.read_excel("./assets/public_data/ghs_p_codes.xlsx")
+
 re_cas = re.compile(r'\d{2,7}-\d\d-\d')
 re_ghs_p_statements = re.compile(r'(P\d{3})')
 re_ghs_h_statements = re.compile(r'(H\d{3})')
@@ -387,7 +390,7 @@ def main():
         else:
             hazard_markdown = ""
             for code in parsed['safety_and_hazards'].get('GHS Hazard Statements', []):
-                row = sci_safety.HAZARD_STATEMENTS[sci_safety.HAZARD_STATEMENTS['H-Code'] == code]
+                row = HAZARD_STATEMENTS[HAZARD_STATEMENTS['H-Code'] == code]
                 statement = row['Hazard Statements'].values[0]
                 hazard_markdown += f"<abbr title='{statement}'>{code}</abbr> | "
             st.markdown(hazard_markdown[:-2], unsafe_allow_html=True)
@@ -395,7 +398,7 @@ def main():
         # st.markdown("##### Precautionary Statement Codes")
         # precaution_markdown = ""
         # for code in parsed['safety_and_hazards'].get('Precautionary Statement Codes', []):
-        #     row = sci_safety.PRECAUTIONARY_STATEMENTS[sci_safety.PRECAUTIONARY_STATEMENTS['p_code'] == code]
+        #     row = PRECAUTIONARY_STATEMENTS[PRECAUTIONARY_STATEMENTS['p_code'] == code]
         #     statement = row['statement'].values[0]
         #     precaution_markdown += f"<abbr title='{statement}'>{code}</abbr> | "
         # st.markdown(precaution_markdown[:-2], unsafe_allow_html=True)
