@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_ketcher import st_ketcher
 
 import warnings
 import os
@@ -23,17 +24,7 @@ sci_setup.setup_page("Chem Info")
 
 HAZARD_STATEMENTS = sci_data.file_to_df("./assets/public_data/ghs_h_codes.xlsx")
 PRECAUTIONARY_STATEMENTS = sci_data.file_to_df("./assets/public_data/ghs_p_codes.xlsx")
-PICTOGRAMS = {
-    "GHS01": {"name": "Explosive", "image": "./assets/images/GHS01.png"},
-    "GHS02": {"name": "Flammable", "image": "./assets/images/GHS02.png"},
-    "GHS03": {"name": "Oxidizer", "image": "./assets/images/GHS03.png"},
-    "GHS04": {"name": "Compressed Gas", "image": "./assets/images/GHS04.png"},
-    "GHS05": {"name": "Corrosive", "image": "./assets/images/GHS05.png"},
-    "GHS06": {"name": "Acute Toxic", "image": "./assets/images/GHS06.png"},
-    "GHS07": {"name": "Irritant", "image": "./assets/images/GHS07.png"},
-    "GHS08": {"name": "Health Hazard", "image": "./assets/images/GHS08.png"},
-    "GHS09": {"name": "Environment", "image": "./assets/images/GHS09.png"},
-}
+PICTOGRAMS = sci_data.file_to_df("./assets/public_data/ghs_pictograms.xlsx")
 
 re_cas = re.compile(r'\d{2,7}-\d\d-\d')
 re_ghs_p_statements = re.compile(r'(P\d{3})')
@@ -260,7 +251,7 @@ def img_to_html(img_path):
     return img_html
 
 def main():
-    input_type = st.selectbox("Input Type", ["Name", "SMILES", "MOL"])
+    input_type = st.selectbox("Input Type", ["Name", "Draw Structure", "SMILES", "MOL"])
     
     if input_type == "Name":
         compound_name = st.text_input("Name", value='Caffeine', label_visibility='collapsed')
@@ -273,6 +264,14 @@ def main():
             mol = Chem.MolFromSmiles(compound_smiles)
         except ValueError as e:
             st.error(f"{e}")
+            return None
+    
+    elif input_type == "Draw Structure":
+        compound_smiles = st_ketcher(value='CN1C=NC2=C1C(=O)N(C(=O)N2C)C', molecule_format='SMILES', height=650)
+        mol = Chem.MolFromSmiles(compound_smiles)
+        compound_pc = pubchem_from_smiles(compound_smiles)
+        if compound_pc.cid == None:
+            st.error(f"Compound with SMILES '{compound_smiles}' not found in PubChem")
             return None
     
     elif input_type == "SMILES":
@@ -375,23 +374,24 @@ def main():
     st.markdown("### Safety and Hazards")
     with st.container(height=600):
 
-        st.markdown("##### Pictograms and Signal Word")
-        pictograms = parsed['safety_and_hazards'].get('Pictogram(s)', [])
-        if len(pictograms) == 0:
-            st.caption("No pictograms found")
-        else:
-            pictogram_cols = st.columns(len(pictograms))
-            for i, pictogram in enumerate(pictograms):
-                with pictogram_cols[i]:
-                    # st.markdown(img_to_html(f"assets/images/{pictogram}.png"), unsafe_allow_html=True)
-                    st.image(f"assets/images/{pictogram}.png", width=50)
-                    st.caption(pictogram)
+        st.markdown("##### Signal Word and Pictograms")
         signal_word = parsed['safety_and_hazards'].get('Signal', '')
         if signal_word == '':
             st.caption("No signal word found")
         else:
             color = 'red' if signal_word == 'Danger' else 'orange'
             st.markdown(f":{color}[{signal_word}]", unsafe_allow_html=True)
+        pictograms = parsed['safety_and_hazards'].get('Pictogram(s)', [])
+        if len(pictograms) == 0:
+            st.caption("No pictograms found")
+        else:
+            pictogram_cols = st.columns(len(pictograms))
+            for i, pictogram in enumerate(pictograms):
+                row = PICTOGRAMS[PICTOGRAMS['description'] == pictogram]
+                with pictogram_cols[i]:
+                    st.caption(row['code'].values[0])
+                    st.image(row['image'].values[0], width=50)
+                    st.caption(row['description'].values[0])
 
         st.markdown("---")
         st.markdown("##### GHS Hazard Statements")
@@ -401,10 +401,12 @@ def main():
         else:
             hazard_markdown = ""
             for code in parsed['safety_and_hazards'].get('GHS Hazard Statements', []):
-                row = HAZARD_STATEMENTS[HAZARD_STATEMENTS['H-Code'] == code]
-                statement = row['Hazard Statements'].values[0]
+                row = HAZARD_STATEMENTS[HAZARD_STATEMENTS['h_code'] == code]
+                statement = row['hazard_statements'].values[0]
                 hazard_markdown += f"<abbr title='{statement}'>{code}</abbr> | "
             st.markdown(hazard_markdown[:-2], unsafe_allow_html=True)
+        with st.popover("H-Codes"):
+            st.dataframe(HAZARD_STATEMENTS, hide_index=True)
 
         # st.markdown("##### Precautionary Statement Codes")
         # precaution_markdown = ""
