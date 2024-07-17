@@ -21,8 +21,8 @@ from helpers import sci_setup, sci_data
 from helpers.sci_style import *
 sci_setup.setup_page("Chem Info")
 
-HAZARD_STATEMENTS = pd.read_excel("./assets/public_data/ghs_h_codes.xlsx")
-PRECAUTIONARY_STATEMENTS = pd.read_excel("./assets/public_data/ghs_p_codes.xlsx")
+HAZARD_STATEMENTS = sci_data.file_to_df("./assets/public_data/ghs_h_codes.xlsx")
+PRECAUTIONARY_STATEMENTS = sci_data.file_to_df("./assets/public_data/ghs_p_codes.xlsx")
 PICTOGRAMS = {
     "GHS01": {"name": "Explosive", "image": "./assets/images/GHS01.png"},
     "GHS02": {"name": "Flammable", "image": "./assets/images/GHS02.png"},
