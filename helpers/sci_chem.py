@@ -243,5 +243,4 @@ def generate_mol_grid_html(df, smiles_col):
         border="none",
         gap=2,
         selection=False,
-
-        )._repr_html_()
+    )._repr_html_()

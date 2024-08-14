@@ -104,8 +104,11 @@ def parse_full_json(full_record):
     for section in find_dicts_with_key(full_record, 'TOCHeading'):
         name = section['TOCHeading']
         if name == "First Aid Measures":
-            for risk in section['Information']:
-                parsed["safety_and_hazards"][risk['Name']] = risk['Value']['StringWithMarkup'][0]['String']
+            try:
+                for risk in section['Information']:
+                    parsed["safety_and_hazards"][risk['Name']] = risk['Value']['StringWithMarkup'][0]['String']
+            except KeyError:
+                pass
 
     try:
         for record in full_record["Record"]["Section"]:

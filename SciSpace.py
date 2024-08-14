@@ -17,15 +17,20 @@ def main():
 
     st.image(sci_setup.logo())
 
-    # show_pages(
-    #     [
-    #         Page("SciSpace.py.py", "Home"),
-    #         Section("Spectral"),
-    #         Page("apps/101_Deconvolution.py", "Deconvolution"),
-    #         Page("apps/102_Raman Signal Processor.py", "Raman Signal Processor"),
-    #         Page("apps/103_Quantitative Signal Analyser.py", "Quantitative Signal Analyser")
-    #     ]
+    # page_deconvolution = st.Page("pages/101_Deconvolution.py", title="Deconvolution", )
+    # page_raman_signal_processor = st.Page("pages/102_Raman Signal Processing.py", title="Raman Signal Processing", )
+    # page_quantitative_signal_analyser = st.Page("pages/103_Quantitative Signal Analysis.py", title="Quantitative Signal Analysis", )
+
+    # pg = st.navigation(
+    #     {
+    #         "Spectoscopy": [
+    #             page_deconvolution,
+    #             page_raman_signal_processor,
+    #             page_quantitative_signal_analyser
+    #         ],
+    #     }
     # )
+    # pg.run()
 
 if __name__ == '__main__':
     main()
