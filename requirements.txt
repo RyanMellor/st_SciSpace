@@ -24,6 +24,6 @@ scipy==1.11.4
 simplification==0.7.10
 statsmodels==0.14.0
 stmol==0.0.9
-streamlit==1.35.0
+streamlit==1.41.0
 streamlit-drawable-canvas==0.8.0
 streamlit-ketcher==0.0.1
