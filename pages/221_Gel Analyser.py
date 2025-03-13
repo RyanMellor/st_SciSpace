@@ -15,7 +15,7 @@ os.environ["OMP_NUM_THREADS"] = '1'
 # Import helpers from your existing codebase
 from helpers import sci_setup, sci_data, sci_image
 from helpers.sci_style import *
-sci_setup.setup_page("Western Blot Analysis")
+sci_setup.setup_page("Gel Analyser")
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -488,7 +488,7 @@ def image_input_section():
             )
 
             if not img_file:
-                st.info("Upload a Western blot gel image")
+                st.info("Upload a gel image")
                 return None
             
             img_original = open_img(img_file)
@@ -566,8 +566,8 @@ def lane_detection_section(img_cropped):
         with col_settings:
             st.markdown("#### Settings")
             invert_val = st.checkbox("Invert intensity values", value=st.session_state.band_params["invert_val"])
-            lane_count = st.slider("Number of Lanes", min_value=1, max_value=20, value=13)
-            lane_width = st.slider("Lane Width", min_value=10, max_value=100, value=25)
+            lane_count = st.number_input("Number of Lanes", min_value=1, max_value=20, value=16)
+            lane_width = st.number_input("Lane Width", min_value=10, max_value=100, value=20)
             
             # Update band parameters
             st.session_state.band_params["invert_val"] = invert_val
@@ -636,8 +636,8 @@ def band_detection_section(img_cropped, lane_positions, lane_width, lane_images)
         
         with col_settings:
             st.markdown("#### Settings")
-            
-            band_threshold = st.slider(
+
+            band_threshold = st.number_input(
                 "Band detection threshold", 
                 min_value=0.0, 
                 max_value=0.5, 
@@ -645,8 +645,8 @@ def band_detection_section(img_cropped, lane_positions, lane_width, lane_images)
                 step=0.01,
                 help="Threshold for band detection (fraction of max intensity)"
             )
-            
-            band_prominence = st.slider(
+
+            band_prominence = st.number_input(
                 "Band prominence", 
                 min_value=0.0, 
                 max_value=0.5, 
@@ -654,14 +654,15 @@ def band_detection_section(img_cropped, lane_positions, lane_width, lane_images)
                 step=0.01,
                 help="Required prominence for band detection (fraction of max)"
             )
-            
-            band_min_dist = st.slider(
+
+            band_min_dist = st.number_input(
                 "Min band distance", 
                 min_value=5, 
                 max_value=100, 
                 value=st.session_state.band_params["band_min_dist"],
                 help="Minimum distance between bands (pixels)"
             )
+
             
             display_channel = "Grayscale"  # Default
             
@@ -1163,7 +1164,7 @@ def lane_comparison_analysis(lane_positions, lane_width, lane_images):
         
         # Optional separation factor for stacked display
         if display_mode == "Stacked":
-            separation_factor = st.slider(
+            separation_factor = st.number_input(
                 "Separation between chromatograms", 
                 min_value=0.2, 
                 max_value=2.0, 
