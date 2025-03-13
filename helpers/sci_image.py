@@ -34,6 +34,80 @@ def resize(img: Image, max_height: int = 500, max_width: int = 500):
 
 	return img, ratio
 
+def crop(
+		img_original,
+		initial_roi_pos=(0.1, 0.1, 0.8, 0.8)):
+	'''
+	Crop the image to the region of interest (ROI)
+	Args:
+		img_original (Image): Original image
+		initial_roi_pos (tuple, optional): Initial position of the ROI. Defaults to (0.1, 0.1, 0.8, 0.7).
+	Returns:
+		dict: Contains:
+			'img_cropped' (Image): Cropped image
+			'scalefactor' (float): Ratio of the resized image to the original image
+			'crop_box' (tuple): Coordinates of the ROI on the resized image (left, top, right, bottom)
+	'''
+
+	if 'canvas_key' not in st.session_state.keys():
+		new_canvas_key()
+
+	if 'drawing_mode' not in st.session_state.keys():
+			st.session_state['drawing_mode'] = 'transform'
+
+	img_resized, scalefactor = resize(img_original)
+	col_original_img, col_img_settings = st.columns([3, 1])
+
+	initial_drawing = {
+			'version': '4.4.0',
+			'objects': [
+				{
+				'type': 'rect',
+				'left': img_resized.width*initial_roi_pos[0], 'top': img_resized.height*initial_roi_pos[1],
+				'width': img_resized.width*initial_roi_pos[2], 'height': img_resized.height*initial_roi_pos[3],
+				'fill': '#00000000', 'stroke': THEME_PRIMARY, 'strokeWidth': 4
+				}
+			]
+		}
+
+	canvas_result = st_canvas(
+		key=st.session_state['canvas_key'],
+		background_image=img_resized,
+		height=img_resized.height,
+		width=img_resized.width,
+		drawing_mode=st.session_state['drawing_mode'],
+		display_toolbar=False,
+		initial_drawing=initial_drawing,
+		fill_color='#00000000',
+		stroke_color=THEME_PRIMARY,
+		stroke_width=4
+	)
+
+	try:
+		crop_rect = [d for d in canvas_result.json_data['objects'] if d['type'] == 'rect'][0]
+	except:
+		return None
+
+	crop_left = crop_rect['left']
+	crop_top = crop_rect['top']
+	crop_right = crop_left + crop_rect['width'] * crop_rect['scaleX']
+	crop_bottom = crop_top + crop_rect['height'] * crop_rect['scaleY']
+
+	# Ensure the crop coordinates are within the resized image bounds
+	crop_left = max(crop_left, 0)
+	crop_top = max(crop_top, 0)
+	crop_right = min(crop_right, img_resized.width)
+	crop_bottom = min(crop_bottom, img_resized.height)
+
+	img_cropped = img_original.crop((
+		int((crop_left / img_resized.width) * img_original.width),
+		int((crop_top / img_resized.height) * img_original.height),
+		int((crop_right / img_resized.width) * img_original.width),
+		int((crop_bottom / img_resized.height) * img_original.height)
+	))
+
+	return img_cropped
+
 def crop_and_calibrate(
 		  img_original,
 		  initial_roi_pos=(0.1, 0.1, 0.8, 0.7),
@@ -50,6 +124,8 @@ def crop_and_calibrate(
 		initial_scalebar_units (str, optional): Initial units of the scalebar. Defaults to 'nm'.
 	Returns:
 		img_cropped (Image): Cropped image
+		scalefactor (float): Ratio of the resized image to the original image
+		scalebar_length_px (float): Length of the scalebar in pixels
 		scalebar_length (float): Length of the scalebar in pixels
 		scalebar_units (str): Units of the scalebar
 	'''
@@ -58,7 +134,7 @@ def crop_and_calibrate(
 		new_canvas_key()
 
 	img_resized, scalefactor = resize(img_original)
-	col_original_img, col_img_settings = st.columns([3,1])
+	col_original_img, col_img_settings = st.columns([3, 1])
 
 	with col_img_settings:
 		scalebar_length = st.number_input("Scalebar length", value=initial_scalebar_length)

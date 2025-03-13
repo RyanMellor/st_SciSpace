@@ -3,7 +3,7 @@ primaryColor = "#007acc"
 backgroundColor = "#2b2b2b"
 secondaryBackgroundColor = "#424242"
 textColor = "#fafafa"
-font = "sans serif"
+font = "Roboto"
 
 [server]
 enableStaticServing = true

@@ -3,6 +3,8 @@ THEME_BACKGROUND = "#2b2b2b"
 THEME_SECONDARY = "#424242"
 THEME_TEXT = "#fafafa"
 
+THEME_PRIMARY_RGB = tuple(int(THEME_PRIMARY.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+
 COLOR_DICT = {
     "red": {
         0: "#ffebee",
